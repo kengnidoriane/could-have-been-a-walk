@@ -1,0 +1,36 @@
+{
+  "name": "could-have-been-a-walk",
+  "private": true,
+  "version": "0.0.0",
+  "description": "This meeting could have been a walk. A local Gemma model turns calendar meetings into timed walking loops.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "dev": "pnpm --filter @cbaw/api --filter @cbaw/web --parallel run dev",
+    "dev:api": "pnpm --filter @cbaw/api run dev",
+    "dev:web": "pnpm --filter @cbaw/web run dev",
+    "build": "pnpm -r --if-present run build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test",
+    "check": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^20.19.43",
+    "eslint": "^10.12.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^5.0.3"
+  }
+}
