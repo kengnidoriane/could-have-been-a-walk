@@ -47,6 +47,8 @@ function simulate(s: Scenario = {}) {
   let arrivedAt: number | null = null;
   let diverted = false;
   let lateByMs = 0;
+  let cutFlips = 0;
+  let wasCut = false;
 
   for (let i = 1; i < 20 * 70; i++) {
     walker.step(5000);
@@ -63,7 +65,9 @@ function simulate(s: Scenario = {}) {
       speedKmh: SPEED_KMH,
     });
     tracker = result.tracker;
-    const { decision } = result.assessment;
+    const { decision, willCutShort } = result.assessment;
+    if (willCutShort !== wasCut) cutFlips++;
+    wasCut = willCutShort;
     if (timeline.at(-1)?.decision !== decision) timeline.push({ t, decision });
     if (decision === 'TURN_BACK_NOW' && !diverted) {
       turnBackAt = t;
@@ -77,7 +81,7 @@ function simulate(s: Scenario = {}) {
     }
   }
   const changes = timeline.length - 1;
-  return { timeline, changes, turnBackAt, arrivedAt, lateByMs };
+  return { timeline, changes, turnBackAt, arrivedAt, lateByMs, cutFlips };
 }
 
 const minutes = (ms: number | null) => (ms === null ? null : (ms - T0) / MIN);
@@ -114,6 +118,7 @@ describe('turnBack: simulated walks', () => {
     const run = simulate({ noiseM: 12, junkEvery: 7, seed: 3 });
     expect(run.turnBackAt).toBeNull();
     expect(run.changes).toBeLessThanOrEqual(1);
+    expect(run.cutFlips).toBe(0);
     expect(run.arrivedAt).not.toBeNull();
     expect(run.arrivedAt!).toBeLessThanOrEqual(END);
   });

@@ -49,8 +49,10 @@ export interface WalkTracker {
   position: LatLon | null;
   lastFixAt: number | null;
   samples: { along: number; t: number }[];
-  /** Last pace measured with enough data, m/s. */
+  /** Smoothed pace once measured with enough data, m/s. */
   paceMps: number | null;
+  /** Since when the full loop has looked too long (hysteresis for `willCutShort`). */
+  lateSince: number | null;
   decision: Decision;
   candidate: { decision: Decision; since: number } | null;
   turnedBackAt: number | null;
@@ -101,6 +103,7 @@ export function startTracker(): WalkTracker {
     lastFixAt: null,
     samples: [],
     paceMps: null,
+    lateSince: null,
     decision: 'ON_TRACK',
     candidate: null,
     turnedBackAt: null,
@@ -129,6 +132,7 @@ export function assess(
   let { along, position, lastFixAt, samples, paceMps } = tracker;
   let offsetM = 0;
   let offRoute = false;
+  let fixUsed = false;
 
   // 1. Progress along the loop.
   if (fix && fix.accuracy <= o.maxAccuracyM) {
@@ -148,32 +152,25 @@ export function assess(
     }
     position = here;
     lastFixAt = fix.t;
+    fixUsed = true;
   }
 
-  // 2. Moving pace over the last couple of minutes, measured as net progress over ~30 s
-  // chunks (GPS noise cancels out within a chunk). Chunks spent standing still are left out:
-  // the clock already counts the stop, and once people walk again they walk at their pace.
-  let moved = 0;
-  let movingMs = 0;
-  const recent = samples.filter((s) => s.t >= now - o.paceWindowMs);
-  let chunkStart = recent[0];
-  for (const sample of recent) {
-    if (!chunkStart || sample.t - chunkStart.t < 30_000) continue;
-    const d = sample.along - chunkStart.along;
-    const dt = sample.t - chunkStart.t;
-    if (d / (dt / 1000) > 0.3) {
-      moved += d;
-      movingMs += dt;
-    }
-    chunkStart = sample;
-  }
+  // 2. Moving pace over the last couple of minutes. Samples are grouped in ~30 s chunks;
+  // chunks spent standing still are cut out (the clock already counts the stop, and once
+  // people walk again they walk at their usual pace). The pace is the least-squares slope of
+  // progress over the remaining "moving time": every fix counts, so GPS noise averages out.
+  const { slope, movingMs } = movingPace(samples.filter((s) => s.t >= now - o.paceWindowMs));
   let pace = paceMps ?? planned;
   let paceSource: Assessment['paceSource'] = paceMps === null ? 'planned' : 'measured';
-  if (movingMs > 0) {
-    const weight = Math.min(1, movingMs / 60_000);
-    pace = weight * (moved / (movingMs / 1000)) + (1 - weight) * planned;
+  if (slope !== null) {
+    // Trust the measurement gradually: two minutes of walking to fully replace the plan.
+    const weight = Math.min(1, movingMs / 120_000);
+    const measured = weight * slope + (1 - weight) * planned;
+    // Smoothed from fix to fix, so "back at 14:41" doesn't jump around.
+    if (paceMps === null) pace = measured;
+    else if (fixUsed) pace = paceMps + 0.25 * (measured - paceMps);
     paceSource = weight >= 0.5 ? 'measured' : 'planned';
-    if (movingMs >= 30_000) paceMps = pace;
+    if (movingMs >= 30_000 || paceMps !== null) paceMps = pace;
   }
   pace = clamp(pace, 0.4, 2.2);
 
@@ -192,20 +189,25 @@ export function assess(
     remainingLoopM < 25 ||
     (straight < 35 && (along > route.length * 0.5 || tracker.turnedBackAt !== null));
 
-  // 4. This instant's verdict.
+  // 4. This instant's verdict. "The loop is too long" needs a clear minute of lateness to
+  // start, and the loop to fit again to stop: walkers right on schedule don't see it blink.
   let raw: Decision = 'ON_TRACK';
-  let willCutShort = false;
+  let cutShort = false;
   const directHelps = etaDirect < etaLoop - 60_000;
+  const wasLate = tracker.lateSince !== null || tracker.decision === 'TURN_BACK_NOW';
+  const loopLate = etaLoop > deadline + (wasLate ? 0 : 60_000);
   if (!arrived) {
-    if (etaLoop > deadline) {
+    if (loopLate) {
       if (directHelps) {
+        // Still "won't fit" while TURN_BACK_NOW waits out its hold: no "on track" flash.
+        cutShort = true;
         if (etaDirect >= deadline - o.lookaheadMs) raw = 'TURN_BACK_NOW';
-        else willCutShort = true;
       }
     } else if (deadline - etaLoop >= o.extensionMs && along / route.length >= 0.4) {
       raw = 'SUGGEST_EXTENSION';
     }
   }
+  const lateSince = loopLate && !arrived ? (tracker.lateSince ?? now) : null;
 
   // 5. Debounce: show a new decision only once it has held for a while. Turning back is
   // sticky: walkers already heading home must not be sent back out by a lucky GPS fix.
@@ -227,6 +229,13 @@ export function assess(
     }
   }
   if (decision === 'TURN_BACK_NOW' && turnedBackAt === null) turnedBackAt = now;
+
+  // Informational, not urgent: it can wait twice as long as a decision before showing.
+  const willCutShort =
+    cutShort &&
+    decision !== 'TURN_BACK_NOW' &&
+    lateSince !== null &&
+    now - lateSince >= 2 * o.holdMs;
 
   const bestEta =
     decision === 'TURN_BACK_NOW' || directHelps ? Math.min(etaDirect, etaLoop) : etaLoop;
@@ -257,6 +266,7 @@ export function assess(
       lastFixAt,
       samples,
       paceMps,
+      lateSince,
       decision,
       candidate,
       turnedBackAt,
@@ -264,6 +274,43 @@ export function assess(
     },
     assessment,
   };
+}
+
+/** Least-squares walking speed (m/s) over the moving parts of `samples`. */
+function movingPace(samples: { along: number; t: number }[]): {
+  slope: number | null;
+  movingMs: number;
+} {
+  const xs: number[] = [];
+  const ys: number[] = [];
+  let movingMs = 0;
+  let first = 0;
+  for (let i = 1; i < samples.length; i++) {
+    const a = samples[first]!;
+    const b = samples[i]!;
+    const dt = b.t - a.t;
+    const lastSample = i === samples.length - 1;
+    if (dt < 30_000 && !(lastSample && dt >= 10_000)) continue;
+    if ((b.along - a.along) / (dt / 1000) > 0.3) {
+      for (let k = xs.length === 0 ? first : first + 1; k <= i; k++) {
+        xs.push(movingMs + (samples[k]!.t - a.t));
+        ys.push(samples[k]!.along);
+      }
+      movingMs += dt;
+    }
+    first = i;
+  }
+  // A slope fitted on a few noisy fixes is worse than the plan: wait for a minute of walking.
+  if (xs.length < 3 || movingMs < 60_000) return { slope: null, movingMs };
+  const mx = xs.reduce((sum, x) => sum + x, 0) / xs.length;
+  const my = ys.reduce((sum, y) => sum + y, 0) / ys.length;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < xs.length; i++) {
+    num += (xs[i]! - mx) * (ys[i]! - my);
+    den += (xs[i]! - mx) ** 2;
+  }
+  return { slope: den > 0 ? (num / den) * 1000 : null, movingMs };
 }
 
 /** Index of the agenda segment covering `along` (the last one once past the end). */
