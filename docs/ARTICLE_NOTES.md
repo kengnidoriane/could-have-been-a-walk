@@ -152,6 +152,25 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - **The TURN BACK NOW takeover** (the money shot for the video), with the phone vibrating.
 - Arrival screen "Back with 4 min to spare".
 
+## M7 · Recap, back at the desk (2026-10-08)
+
+- Consent first: a checkbox ("Everyone on this walk agreed"), **and** the API refuses without it.
+- Voice memo (≤ 3 min) or typed notes → Gemma → summary, decisions, action items with owners and
+  due dates. "Copy recap" for chat/email. Nothing is saved.
+- Real run (Gemma 3 4B, typed notes, 44 s): "Kofi: draft the program budget, Friday · Amara: call
+  the youth centre to book the hall, next week · Tell the finance team, tomorrow" + 2 decisions.
+- **Gotcha for the post:** the first try invented 5 extra action items to fill the list. A recap
+  that invents commitments is worse than no recap. Prompt "an empty list is fine" + a grounding
+  filter in code fixed it.
+- Audio path: Gemma 4 E2B/E4B hear audio through Ollama, Gemma 3 4B doesn't. To verify after
+  `ollama pull gemma4:e2b`: record 20 s on the recap page; the result says "Heard by Gemma 4 E2B".
+- Timeouts: a long JSON answer at ~4 tokens/s takes 40–50 s on this CPU, so timeouts are now per
+  request (agenda 150 s, recap 240 s).
+
+### Screenshots to take (M7)
+
+- Recap page with the consent box ticked, then the result (decisions / action items / owners).
+
 ### Screenshots to take
 
 - Plan page with the sample week loaded (empty state with the drop zone too).

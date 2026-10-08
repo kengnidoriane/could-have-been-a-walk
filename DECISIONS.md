@@ -142,3 +142,25 @@ scripted (`demoWalkLegs`): normal pace for 30% of the loop, a 6-minute chat, the
 out of time reliably, so TURN BACK NOW always happens on camera (around minute 28 of a 45-minute
 meeting, ~2.8 minutes of real time at 10×). After "We're heading back", the virtual walkers take
 the OSRM way back. Fixes get 4 m of jitter. The same `VirtualWalker` drives the unit tests.
+
+## D-014 · Recap: on the laptop, Gemma's own ears, typed notes as the fallback (2026-10-08)
+
+- **Where:** the phone has no model, and the audio must not leave the device. So the recap
+  happens back at the desk, on the laptop that runs Gemma: the browser records, converts to 16 kHz
+  mono WAV in pieces of at most 30 s (Gemma's audio window), and posts only to `127.0.0.1`. The
+  audio is never written to disk, on either side.
+- **Speech to text:** Gemma 4 E2B/E4B have an audio encoder, and Ollama (≥ 0.33.3, here 0.35.1)
+  takes audio through the same field as images. That keeps the whole pipeline on one open model,
+  so whisper.cpp isn't needed. Gemma 3 4B (the only model pulled when this was built) can't hear:
+  the API answers 501 with "Pull gemma4:e2b, or type your notes". **Audio transcription is
+  therefore untested on this machine until `gemma4:e2b` is pulled** (see ARTICLE_NOTES for the check).
+- **Typed notes** go through the same summarizer, so the recap works with any model.
+- **Consent is enforced by the API** (`consent: true` or 400), not only by the checkbox.
+
+## D-015 · Grounded action items (2026-10-08)
+
+First live recap (Gemma 3 4B): summary, decisions and the 3 real action items were right, then it
+padded the list to 8 with invented tasks ("Monitor Q3 spend", "Prepare January laptop purchase
+plan"). Fixes: the prompt says most walks produce 0–4 items and an empty list is fine, the schema
+allows 6 at most, and `groundedActions` drops items whose owner, due date or most of whose words
+don't appear in what was said. Second run: exactly the 3 real items, in 44 s.
