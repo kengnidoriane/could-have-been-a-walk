@@ -3,6 +3,7 @@ export * from './geo';
 export * from './ics';
 export * from './loop';
 export * from './polyline';
+export * from './recap';
 export * from './simulate';
 export * from './turnBack';
 export * from './units';
