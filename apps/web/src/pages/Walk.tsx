@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AgendaTimeline } from '../components/AgendaTimeline';
 import { Header } from '../components/Header';
 import { MapView, type MapPin } from '../components/MapView';
+import { WeeklyStat } from '../components/WeeklyStat';
 import { formatKm, formatMinutes, formatTime, relativeDay } from '../lib/format';
 import { useWalk, type WalkView } from '../lib/useWalk';
 
@@ -143,6 +144,7 @@ function StartScreen({
             The demo replay still works.
           </p>
         )}
+        <WeeklyStat />
         <p className="privacy-note">
           🔒 Your location stays on this phone. The screen stays on while you walk.
         </p>
@@ -334,6 +336,7 @@ function Arrived({ plan, view }: { plan: WalkPlan; view: WalkView }) {
           {formatKm(view.walkedM)} walked, {formatMinutes(outsideMin)} away from the chair.
           {view.mode === 'demo' && ' (Demo replay.)'}
         </p>
+        <WeeklyStat refreshKey="arrived" />
         <p className="note">
           Back at your desk? Open the planner on your computer and record a 1-minute recap: Gemma
           writes down decisions and action items, and the audio never leaves that computer.

@@ -9,6 +9,8 @@ export interface Plan {
   start: LatLon;
   seed: number;
   speedKmh: number;
+  /** Walking window asked for: the meeting length, or less when rain is coming. */
+  minutes: number;
 }
 
 export type Source = 'gemma' | 'heuristic';
@@ -82,7 +84,7 @@ export function clearCalendar() {
 }
 
 export function planKey(plan: Plan): string {
-  return `${plan.seed}|${plan.speedKmh}|${plan.start.lat},${plan.start.lon}`;
+  return `${plan.seed}|${plan.speedKmh}|${plan.minutes}|${plan.start.lat},${plan.start.lon}`;
 }
 
 export function savePlan(meetingId: string, plan: Plan) {

@@ -28,13 +28,15 @@ export function toWalkPlan(
   loop: LoopResult,
   segments: AgendaSegment[],
   office: Office,
+  /** Be back earlier than the meeting end (shorter loop because of rain). */
+  endOverride?: number,
 ): WalkPlan {
   // Agenda distances are in the router's metres; the walk page measures along the polyline.
   const scale = makeRoute(loop.points).length / loop.distanceM;
   return {
     title: meeting.title,
     start: meeting.start,
-    end: meeting.end,
+    end: endOverride ?? meeting.end,
     speedKmh: loop.speedKmh,
     route: loop.points,
     startLabel: office.label,

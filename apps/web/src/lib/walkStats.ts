@@ -1,13 +1,6 @@
-// Finished walks, kept on this device only (for the weekly mini-stat).
+import type { WalkRecord } from '@cbaw/core';
 
-export interface WalkRecord {
-  /** Epoch ms when the walk ended. */
-  at: number;
-  title: string;
-  distanceM: number;
-  minutes: number;
-  demo: boolean;
-}
+// Finished walks, kept on this device only (for the weekly mini-stat).
 
 const KEY = 'cbaw.walks.v1';
 

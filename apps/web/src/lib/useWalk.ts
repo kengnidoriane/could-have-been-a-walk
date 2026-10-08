@@ -171,7 +171,7 @@ export function useWalk(plan: WalkPlan) {
       status = 'arrived';
       stopTimers();
       saveWalk({
-        at: now,
+        at: Date.now(), // real time, even in a demo replay (its clock is simulated)
         title: plan.title,
         distanceM: walkedM.current,
         minutes: startedAt.current ? (now - startedAt.current) / 60_000 : 0,

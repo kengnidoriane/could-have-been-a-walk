@@ -3,8 +3,10 @@ import {
   buildCheckpoints,
   DEFAULT_SPEED_KMH,
   GENTLE_SPEED_KMH,
+  isRainy,
   makeRoute,
   pointAt,
+  type RainRisk,
 } from '@cbaw/core';
 import { useEffect, useMemo, useState } from 'react';
 import { AgendaTimeline } from '../components/AgendaTimeline';
@@ -12,13 +14,14 @@ import { Header } from '../components/Header';
 import { MapView, type MapPin } from '../components/MapView';
 import { QRHandoff } from '../components/QRHandoff';
 import { ApiError, fetchAgenda, fetchLoop } from '../lib/api';
-import { formatKm, formatMinutes, formatRange, relativeDay } from '../lib/format';
+import { formatKm, formatMinutes, formatRange, formatTime, relativeDay } from '../lib/format';
 import { prettyModel } from '../lib/health';
 import { setPreferences, usePreferences } from '../lib/office';
 import { navigate, paths } from '../lib/router';
 import { setScoringPaused } from '../lib/scoring';
 import { planKey, saveAgenda, savePlan, useAppState } from '../lib/store';
 import { buildWalkUrl, downloadInvite, toWalkPlan } from '../lib/walkLink';
+import { fetchRainRisk, shorterMinutes } from '../lib/weather';
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 
@@ -50,17 +53,33 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [picking, setPicking] = useState(false);
+  const [short, setShort] = useState(
+    () => !!plan && !!meeting && plan.minutes < meeting.durationMin,
+  );
+  const minutes = meeting ? (short ? shorterMinutes(meeting.durationMin) : meeting.durationMin) : 0;
+  const [rain, setRain] = useState<RainRisk | null>(null);
+
+  // Check the sky for the meeting's hours (Monrovia gets ~5 m of rain a year).
+  useEffect(() => {
+    if (!meeting) return;
+    const controller = new AbortController();
+    fetchRainRisk(office, meeting.start, meeting.end, controller.signal)
+      .then(setRain)
+      .catch(() => setRain(null));
+    return () => controller.abort();
+  }, [meeting, office]);
 
   useEffect(() => {
     setScoringPaused(true);
     return () => setScoringPaused(false);
   }, []);
 
-  const requestKey = `${seed}|${speedKmh}|${office.lat},${office.lon}|${attempt}`;
+  const requestKey = `${seed}|${speedKmh}|${minutes}|${office.lat},${office.lon}|${attempt}`;
   const planIsCurrent =
     !!plan &&
     plan.seed === seed &&
     plan.speedKmh === speedKmh &&
+    plan.minutes === minutes &&
     plan.start.lat === office.lat &&
     plan.start.lon === office.lon;
   const error = failure?.key === requestKey ? failure.message : null;
@@ -69,8 +88,8 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
   useEffect(() => {
     if (!meeting || planIsCurrent) return;
     const controller = new AbortController();
-    fetchLoop({ start: office, minutes: meeting.durationMin, speedKmh, seed }, controller.signal)
-      .then((loop) => savePlan(meeting.id, { loop, start: office, seed, speedKmh }))
+    fetchLoop({ start: office, minutes, speedKmh, seed }, controller.signal)
+      .then((loop) => savePlan(meeting.id, { loop, start: office, seed, speedKmh, minutes }))
       .catch((err: unknown) => {
         if ((err as Error).name === 'AbortError') return;
         setFailure({
@@ -79,7 +98,7 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
         });
       });
     return () => controller.abort();
-  }, [meeting, office, speedKmh, seed, planIsCurrent, requestKey]);
+  }, [meeting, office, speedKmh, seed, minutes, planIsCurrent, requestKey]);
 
   const loop = planIsCurrent ? plan.loop : null;
   const agenda = useAppState((s) => s.agendas[meetingId]);
@@ -118,13 +137,14 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
       return;
     }
     let alive = true;
-    void buildWalkUrl(toWalkPlan(meeting, loop, agenda.segments, office)).then(
+    const end = minutes < meeting.durationMin ? meeting.start + minutes * 60_000 : undefined;
+    void buildWalkUrl(toWalkPlan(meeting, loop, agenda.segments, office, end)).then(
       (url) => alive && setWalkUrl(url),
     );
     return () => {
       alive = false;
     };
-  }, [meeting, loop, agenda, agendaIsCurrent, office]);
+  }, [meeting, loop, agenda, agendaIsCurrent, office, minutes]);
 
   const pins = useMemo<MapPin[]>(() => {
     if (!route || !loop || !agendaIsCurrent) return [];
@@ -153,7 +173,8 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
     );
   }
 
-  const spareMin = loop ? Math.max(0, Math.round(meeting.durationMin - loop.durationMin)) : 0;
+  const spareMin = loop ? Math.max(0, Math.round(minutes - loop.durationMin)) : 0;
+  const deskMin = meeting.durationMin - minutes;
   const mostlyOutAndBack = loop && loop.overlapRatio > 0.5;
 
   return (
@@ -211,8 +232,34 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
                   {formatMinutes(meeting.durationMin)} meeting
                 </p>
                 <p className="muted">
-                  {formatKm(loop.distanceM)} at {speedKmh} km/h · back {spareMin} min before the end
+                  {formatKm(loop.distanceM)} at {speedKmh} km/h ·{' '}
+                  {deskMin > 0
+                    ? `back after ${formatMinutes(loop.durationMin + spareMin)}, the last ${deskMin} min at the desk`
+                    : `back ${spareMin} min before the end`}
                 </p>
+                {rain && (
+                  <div className={isRainy(rain) ? 'note rain-note' : 'muted rain-note'}>
+                    <p>
+                      {isRainy(rain)
+                        ? `☔ Rain likely around ${formatTime(rain.worstHour)} (${rain.probability}%${rain.mm ? `, ${rain.mm} mm` : ''}).`
+                        : `Forecast: ${rain.probability}% chance of rain.`}{' '}
+                      <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">
+                        Open-Meteo
+                      </a>
+                    </p>
+                    {(isRainy(rain) || short) && (
+                      <button
+                        type="button"
+                        className="btn btn-small btn-ghost"
+                        onClick={() => setShort((v) => !v)}
+                      >
+                        {short
+                          ? 'Plan the full loop'
+                          : `Shorter loop (${shorterMinutes(meeting.durationMin)} min)`}
+                      </button>
+                    )}
+                  </div>
+                )}
                 {mostlyOutAndBack && (
                   <p className="note">
                     Mostly out-and-back: few through streets around here. Try another loop, or move

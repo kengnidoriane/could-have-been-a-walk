@@ -4,6 +4,7 @@ import { Dropzone } from '../components/Dropzone';
 import { Header } from '../components/Header';
 import { MeetingCard } from '../components/MeetingCard';
 import { ScoreBadge } from '../components/ScoreBadge';
+import { WeeklyStat } from '../components/WeeklyStat';
 import { DEMO_WALK } from '../lib/demoWalk';
 import { dayKey, formatShortDay, relativeDay } from '../lib/format';
 import { prettyModel, useModelStatus } from '../lib/health';
@@ -165,6 +166,7 @@ export function Plan() {
             <p className="eyebrow">{calendarName}</p>
             <h1>Which of these could be a walk?</h1>
             <ScoringLine meetings={meetings} />
+            <WeeklyStat />
           </div>
           <div className="row">
             <div className="segmented" role="radiogroup" aria-label="Sort meetings">

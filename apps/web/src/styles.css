@@ -1232,3 +1232,30 @@ code {
   cursor: pointer;
   font-weight: 600;
 }
+
+/* --- Weather, weekly stat --------------------------------------------------------------------- */
+
+.rain-note {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+}
+
+.rain-note p {
+  margin: 0;
+}
+
+.rain-note a {
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.weekly-stat {
+  margin: 0.5rem 0 0;
+  color: var(--forest);
+}
+
+.walk-arrived .weekly-stat {
+  font-size: 1.1rem;
+}
