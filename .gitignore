@@ -33,3 +33,6 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 *.log
+
+# local tool config
+.claude/
