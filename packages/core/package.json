@@ -4,6 +4,7 @@
   "private": true,
   "description": "Pure, unit-tested logic shared by the web app and the local API.",
   "type": "module",
+  "sideEffects": false,
   "exports": {
     ".": "./src/index.ts"
   },
