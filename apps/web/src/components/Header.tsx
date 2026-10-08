@@ -2,7 +2,13 @@ import type { ReactNode } from 'react';
 import { navigate, paths } from '../lib/router';
 import { ModelPill } from './ModelPill';
 
-export function Header({ children }: { children?: ReactNode }) {
+interface HeaderProps {
+  children?: ReactNode;
+  /** The walk page runs on a phone with no local API: don't ask it for the model. */
+  showModel?: boolean;
+}
+
+export function Header({ children, showModel = true }: HeaderProps) {
   return (
     <header className="topbar">
       <a
@@ -18,7 +24,7 @@ export function Header({ children }: { children?: ReactNode }) {
       </a>
       <div className="topbar-right">
         {children}
-        <ModelPill />
+        {showModel && <ModelPill />}
       </div>
     </header>
   );
