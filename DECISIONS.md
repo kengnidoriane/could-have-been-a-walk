@@ -108,3 +108,37 @@ with `pnpm --filter @cbaw/api try-score`).
 Ollama answers one request at a time. The Plan page scores meetings one by one (earliest first) so
 the list fills in progressively. The Route page pauses that queue after the current meeting, so
 its agenda request doesn't wait behind the rest of the week.
+
+## D-011 · TURN BACK NOW at the last responsible moment (2026-10-08)
+
+Read literally, "ETA_loop > end − 2 min and the direct return fits" fires as soon as the full loop
+looks too long. For a slow walker that's after 90 seconds: the loop doesn't fit, but going back
+does. That's useless advice. The rule as built:
+
+- **ON_TRACK** while the loop fits (ETA by the loop ≤ end − 2 min).
+- When it doesn't (by more than a minute, to start with), and the shortest way back is meaningfully
+  quicker than finishing the loop, the walkers can **keep going** while the way back still leaves
+  more than a minute of slack ("The full loop won't fit. We'll tell you when to turn back").
+- **TURN_BACK_NOW** when that slack drops under a minute. Shortest way back = straight line × 1.3,
+  replaced by one OSRM route from the phone once it starts to matter (again after moving 150 m).
+- **SUGGEST_EXTENSION** when the loop leaves 6+ minutes spare after 40% of the walk.
+- Debounced: a decision must hold 15 s (immediately if even the way back is already late).
+  TURN_BACK is sticky until arrival. Leaving it needs a clear recovery held for a minute.
+- Once heading back, the agenda jumps to the last segment: turning back means wrapping up.
+
+## D-012 · Pace: least-squares slope over moving time (2026-10-08)
+
+The browser replay showed the "won't fit" hint blinking and "back at" jumping ±2 minutes with 6 m
+of GPS noise. Fix, in order of effect: (1) the pace is the least-squares slope of progress over
+the last two minutes, with 30-second chunks spent standing still cut out (the clock already counts
+the stop); (2) it only replaces the planned pace after a minute of walking, and fully after two;
+(3) it is smoothed from fix to fix (α = 0.25); (4) the hint has hysteresis and a 30 s hold.
+A test now asserts zero blinks for an on-pace walker with 12 m noise and junk fixes.
+
+## D-013 · Demo mode replays a scripted walk (2026-10-08)
+
+"Replay a recorded GPS track at 10×": there's no real recorded track yet, so the demo walker is
+scripted (`demoWalkLegs`): normal pace for 30% of the loop, a 6-minute chat, then 90% pace. It runs
+out of time reliably, so TURN BACK NOW always happens on camera (around minute 28 of a 45-minute
+meeting, ~2.8 minutes of real time at 10×). After "We're heading back", the virtual walkers take
+the OSRM way back. Fixes get 4 m of jitter. The same `VirtualWalker` drives the unit tests.

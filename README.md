@@ -10,7 +10,7 @@ alert, so you're back at your desk when the meeting ends.
 
 Built for the DEV Hacktoberfest Open-Source AI Challenge, Week 1: _Touch Grass_.
 
-> **Status:** work in progress (challenge deadline: Oct 11, 2026).
+> **Status:** v0.1.0: the full loop works (plan → score → route → agenda → invite → walk → TURN BACK NOW).
 
 ## How it works
 
@@ -23,7 +23,22 @@ Built for the DEV Hacktoberfest Open-Source AI Challenge, Week 1: _Touch Grass_.
 
 ## Quick start
 
-_Coming soon._
+You need Node 20.19+, pnpm 10 and [Ollama](https://ollama.com).
+
+```bash
+git clone https://github.com/kengnidoriane/could-have-been-a-walk.git && cd could-have-been-a-walk
+pnpm install
+ollama pull gemma4:e2b
+pnpm dev
+```
+
+Open http://localhost:5173 and click **Try a sample week** (fake meetings), or drop your own `.ics`.
+No Gemma model yet? The app still works with its fallback rules and tells you so in the header.
+
+**On a phone:** GPS only works on HTTPS pages. Either deploy the static walk page and set
+`VITE_PUBLIC_WALK_URL`, or run `pnpm dev:phone` and open the app through the network address Vite
+prints (accept the self-signed certificate). On the walk page, **Demo: replay a walk at 10×** shows
+TURN BACK NOW without leaving your chair.
 
 ## Configuration
 

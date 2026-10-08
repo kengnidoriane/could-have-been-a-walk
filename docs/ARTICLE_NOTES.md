@@ -118,6 +118,40 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - The QR dialog over the route page ("Scan to walk").
 - The imported invite in a calendar app (Google Calendar / Outlook), showing the agenda by segment.
 
+## M6 · TURN BACK NOW (2026-10-08) · tagged v0.1.0
+
+- The walk page opens from the QR link with no server: "Back by 2:45 PM" in huge type, a
+  countdown, progress with agenda ticks, the current topic and its opening question, a live map.
+- `turnBack.ts` (pure, tested): progress along the loop (windowed: the start isn't the finish),
+  moving pace, ETA by the loop vs the shortest way back, against the meeting end minus 2 min.
+- **Design decision worth a paragraph: the last responsible moment.** The naive rule tells a slow
+  walker to turn back after 90 seconds. Instead the phone lets them keep going while the way back
+  still fits, says so ("The full loop won't fit. We'll tell you when to turn back"), and fires
+  TURN BACK NOW when the slack drops under a minute.
+- Simulated walks in the tests (VirtualWalker): on pace → never disturbed, home at minute 42 of 45.
+  Slow (0.7×) → alerted once at minute ~20.6, home before the end; without the alert they would be
+  15 minutes late. Fast (1.3×) → "detour?" suggestion. 15-minute chat at the far end → the alert
+  interrupts it, home on time. Noisy GPS (12 m + junk fixes) → zero flicker.
+- **Bug the tests missed, the browser caught:** status line blinking "on track" / "won't fit" and
+  "back at" jumping ±2 min. A 42-minute loop for a 45-minute meeting leaves 1 minute of slack;
+  early pace estimates on a few noisy fixes swung ±10%. Fix: least-squares pace over moving time,
+  trusted gradually, smoothed, plus hysteresis. 6 blinks → 2 → 0.
+- Getting attention outdoors: `navigator.vibrate` (Android), WebAudio beeps (unlocked by the
+  "Start" tap, since iOS has no Vibration API), a full-screen pulsing colour (no pulse with
+  reduced motion), Wake Lock to keep the screen on.
+- **Demo replay at 10×**, full run: on track → "won't fit" during the chat → TURN BACK NOW at
+  minute 28 ("Shortest way back: 1.0 km, about 15 min. Back at 2:42 PM.", from the real OSRM route)
+  → heading back, 990 m … 0 m → "Back with 4 min to spare. 3.1 km walked, 41 min away from the
+  chair." About 4 minutes of real time: ready to film.
+- 106 unit tests at v0.1.0.
+
+### Screenshots / clips to take (M6)
+
+- Phone start screen (map with numbered pins, agenda, "Start walking").
+- Walking view: "Back by 2:45 PM", countdown, current topic.
+- **The TURN BACK NOW takeover** (the money shot for the video), with the phone vibrating.
+- Arrival screen "Back with 4 min to spare".
+
 ### Screenshots to take
 
 - Plan page with the sample week loaded (empty state with the drop zone too).
