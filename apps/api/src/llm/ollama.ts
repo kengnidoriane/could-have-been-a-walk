@@ -8,6 +8,8 @@ export interface ChatJsonRequest<T> {
   user: string;
   schema: z.ZodType<T>;
   temperature?: number;
+  /** Long answers on a laptop CPU take a while (~4 tokens/s): give them room. */
+  timeoutMs?: number;
 }
 
 /** Token counts and timings of one model call, for logs and the write-up. */
@@ -30,6 +32,19 @@ export interface ChatJsonResult<T> {
 export interface JsonLlm {
   resolveModel(): Promise<string | null>;
   chatJson<T>(request: ChatJsonRequest<T>): Promise<ChatJsonResult<T>>;
+  /** Speech to text, for models that can hear. */
+  transcribe?(
+    chunks: string[],
+    language: string,
+  ): Promise<{ text: string; model: string; ms: number }>;
+}
+
+/** The local model can't take audio (only Gemma 4 E2B/E4B and Gemma 3n can). */
+export class AudioUnsupportedError extends LlmError {}
+
+/** Gemma models with an audio encoder. */
+export function hearsAudio(model: string): boolean {
+  return /^(gemma4:(e2b|e4b)|gemma4(:latest)?$|gemma3n)/i.test(model);
 }
 
 export interface OllamaOptions {
@@ -105,14 +120,17 @@ export class Ollama implements JsonLlm {
     let problem = '';
 
     for (let attempt = 1; attempt <= 2; attempt++) {
-      const body = await this.chat({
-        model,
-        messages,
-        format,
-        stream: false,
-        keep_alive: '30m',
-        options: { temperature: attempt === 1 ? (request.temperature ?? 0.2) : 0 },
-      });
+      const body = await this.chat(
+        {
+          model,
+          messages,
+          format,
+          stream: false,
+          keep_alive: '30m',
+          options: { temperature: attempt === 1 ? (request.temperature ?? 0.2) : 0 },
+        },
+        request.timeoutMs,
+      );
       const content = body.message?.content ?? '';
       const stats: LlmStats = {
         promptTokens: body.prompt_eval_count ?? 0,
@@ -141,6 +159,44 @@ export class Ollama implements JsonLlm {
     throw new LlmError(`The model's answer was still invalid after a retry: ${problem}`);
   }
 
+  /**
+   * Speech to text with an audio-capable Gemma. `chunks` are base64 WAV files of at most 30 s
+   * (the audio encoder's window); Ollama takes audio through the same field as images.
+   */
+  async transcribe(
+    chunks: string[],
+    language = 'English',
+  ): Promise<{ text: string; model: string; ms: number }> {
+    const model = await this.resolveModel();
+    if (!model || !hearsAudio(model)) {
+      throw new AudioUnsupportedError(
+        `${model ?? 'No model'} can't listen to audio. Pull gemma4:e2b, or type your notes.`,
+      );
+    }
+    const startedAt = performance.now();
+    const parts: string[] = [];
+    for (const chunk of chunks) {
+      const body = await this.chat(
+        {
+          model,
+          stream: false,
+          keep_alive: '30m',
+          options: { temperature: 0 },
+          messages: [
+            {
+              role: 'user',
+              content: `Transcribe the following speech segment in ${language} into ${language} text. Only output the transcription, with no newlines.`,
+              images: [chunk],
+            },
+          ],
+        },
+        180_000,
+      );
+      parts.push((body.message?.content ?? '').trim());
+    }
+    return { text: parts.join(' ').trim(), model, ms: Math.round(performance.now() - startedAt) };
+  }
+
   /** Load the model into memory so the first real request doesn't pay for it. */
   async warmUp(): Promise<string | null> {
     const model = await this.resolveModel();
@@ -153,11 +209,11 @@ export class Ollama implements JsonLlm {
     return model;
   }
 
-  private async chat(payload: object): Promise<OllamaChatResponse> {
+  private async chat(payload: object, timeoutMs?: number): Promise<OllamaChatResponse> {
     const res = await this.request(
       '/api/chat',
       { method: 'POST', body: JSON.stringify(payload) },
-      this.options.timeoutMs ?? 90_000,
+      timeoutMs ?? this.options.timeoutMs ?? 90_000,
     );
     if (!res.ok) {
       this.resolved = null; // the model may have been removed: look again next time
@@ -174,6 +230,9 @@ export class Ollama implements JsonLlm {
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
+      if ((err as Error).name === 'TimeoutError') {
+        throw new LlmError(`Ollama took longer than ${Math.round(timeoutMs / 1000)} s to answer.`);
+      }
       throw new LlmError(`Ollama is unreachable at ${this.host}: ${(err as Error).message}`);
     }
   }

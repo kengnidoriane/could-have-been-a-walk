@@ -5,6 +5,7 @@ import { config } from './config';
 import { Ollama, type JsonLlm } from './llm/ollama';
 import { registerAgendaRoutes } from './routes/agenda';
 import { registerLoopRoutes } from './routes/loop';
+import { registerRecapRoutes } from './routes/recap';
 import { registerScoreRoutes } from './routes/score';
 import { OsrmRouter } from './routing/osrm';
 
@@ -33,6 +34,7 @@ export function buildApp(deps: AppDeps = {}) {
   registerLoopRoutes(app, { router });
   registerScoreRoutes(app, { llm });
   registerAgendaRoutes(app, { llm });
+  registerRecapRoutes(app, { llm });
 
   return app;
 }

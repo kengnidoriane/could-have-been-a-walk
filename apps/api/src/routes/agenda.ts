@@ -74,6 +74,7 @@ export function registerAgendaRoutes(app: FastifyInstance, deps: { llm: JsonLlm 
         user: agendaUserPrompt(meeting, loop),
         schema: AgendaAnswer,
         temperature: 0.3,
+        timeoutMs: 150_000,
       });
       const segments = normalizeAgenda(data.segments, checkpoints);
       if (segments.length === 0) throw new Error('empty agenda');
