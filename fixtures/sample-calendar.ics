@@ -1,0 +1,177 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Could've Been a Walk//Fake fixture//EN
+CALSCALE:GREGORIAN
+X-WR-CALNAME:Sample week (fake data)
+BEGIN:VTIMEZONE
+TZID:Africa/Monrovia
+BEGIN:STANDARD
+DTSTART:19720101T000000
+TZOFFSETFROM:-004430
+TZOFFSETTO:+0000
+TZNAME:GMT
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VEVENT
+UID:standup-weekly@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261005T090000
+DTEND;TZID=Africa/Monrovia:20261005T091500
+RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR
+EXDATE;TZID=Africa/Monrovia:20261014T090000
+SUMMARY:Weekly team stand-up
+DESCRIPTION:Round the table: yesterday\, today\, blockers. Keep it to 15 min
+ utes.
+LOCATION:Open space
+ORGANIZER;CN=Team Lead:mailto:lead@example.org
+ATTENDEE;CN=You:mailto:you@example.org
+ATTENDEE;CN=Team Lead:mailto:lead@example.org
+ATTENDEE:mailto:dev1@example.org
+ATTENDEE:mailto:dev2@example.org
+ATTENDEE:mailto:dev3@example.org
+ATTENDEE:mailto:design1@example.org
+ATTENDEE:mailto:qa1@example.org
+ATTENDEE:mailto:ops1@example.org
+ATTENDEE;CUTYPE=ROOM;CN=Open space:mailto:room-open-space@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:standup-weekly@example.org
+DTSTAMP:20261001T080000Z
+RECURRENCE-ID;TZID=Africa/Monrovia:20261016T090000
+DTSTART;TZID=Africa/Monrovia:20261016T093000
+DTEND;TZID=Africa/Monrovia:20261016T094500
+SUMMARY:Weekly team stand-up (moved)
+LOCATION:Open space
+ORGANIZER;CN=Team Lead:mailto:lead@example.org
+ATTENDEE;CN=You:mailto:you@example.org
+ATTENDEE:mailto:dev1@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:one-on-one-amara@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261012T100000
+DTEND;TZID=Africa/Monrovia:20261012T103000
+SUMMARY:1:1 with Amara - career check-in
+DESCRIPTION:Monthly check-in. How is the new role going? Growth goals for Q
+ 1. Anything blocking you?
+ORGANIZER;CN=You:mailto:you@example.org
+ATTENDEE;CN=Amara:mailto:amara@example.org
+ATTENDEE;CN=You:mailto:you@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:budget-q4-kofi@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261013T140000
+DTEND;TZID=Africa/Monrovia:20261013T144500
+SUMMARY:Q4 budget decision with Kofi
+DESCRIPTION:Agenda:\n1. Status of Q3 spend\n2. Decide: community program o
+ r new laptops\n3. Next steps and owners
+LOCATION:Kofi's office
+ORGANIZER;CN=You:mailto:you@example.org
+ATTENDEE;CN=Kofi:mailto:kofi@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:code-review-payments@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261013T160000
+DTEND;TZID=Africa/Monrovia:20261013T170000
+SUMMARY:Code review: payments refactor
+DESCRIPTION:We'll go through the pull request together\, line by line. I'll
+  share my screen.\nJoin: https://meet.google.com/aaa-bbbb-ccc
+ORGANIZER;CN=You:mailto:you@example.org
+ATTENDEE:mailto:dev1@example.org
+ATTENDEE:mailto:dev2@example.org
+ATTENDEE:mailto:dev3@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:design-review-onboarding@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261014T110000
+DTEND;TZID=Africa/Monrovia:20261014T120000
+SUMMARY:Design review - onboarding screens
+DESCRIPTION:Walkthrough of the Figma prototype. Bring comments on each scre
+ en.
+LOCATION:Room 2B / https://zoom.us/j/0000000000
+ORGANIZER;CN=Designer:mailto:design1@example.org
+ATTENDEE:mailto:you@example.org
+ATTENDEE:mailto:dev1@example.org
+ATTENDEE:mailto:qa1@example.org
+ATTENDEE:mailto:lead@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:vendor-call@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261015T100000
+DTEND;TZID=Africa/Monrovia:20261015T103000
+STATUS:CANCELLED
+SUMMARY:Vendor call (cancelled)
+ORGANIZER:mailto:you@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:brainstorm-cleanup@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261015T150000
+DTEND;TZID=Africa/Monrovia:20261015T153000
+SUMMARY:Brainstorm: neighbourhood clean-up campaign
+DESCRIPTION:Open ideas\, no slides. Where do we start\, who do we partner w
+ ith\, how do we get people to show up?
+ORGANIZER;CN=You:mailto:you@example.org
+ATTENDEE:mailto:amara@example.org
+ATTENDEE:mailto:kofi@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:mentoring-joseph@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Europe/Paris:20261015T180000
+DTEND;TZID=Europe/Paris:20261015T184000
+SUMMARY:Mentoring session with Joseph
+DESCRIPTION:Phone call. Career questions\, how to grow as a tech lead.
+ORGANIZER;CN=Joseph:mailto:joseph@example.org
+ATTENDEE:mailto:you@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:all-hands-q4@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;TZID=Africa/Monrovia:20261016T130000
+DTEND;TZID=Africa/Monrovia:20261016T140000
+SUMMARY:Quarterly all-hands
+DESCRIPTION:Slides from each team\, Q&A at the end.
+LOCATION:Main hall
+ORGANIZER:mailto:ceo@example.org
+ATTENDEE:mailto:you@example.org
+ATTENDEE:mailto:lead@example.org
+ATTENDEE:mailto:dev1@example.org
+ATTENDEE:mailto:dev2@example.org
+ATTENDEE:mailto:dev3@example.org
+ATTENDEE:mailto:design1@example.org
+ATTENDEE:mailto:qa1@example.org
+ATTENDEE:mailto:ops1@example.org
+ATTENDEE:mailto:amara@example.org
+ATTENDEE:mailto:kofi@example.org
+ATTENDEE:mailto:sales1@example.org
+END:VEVENT
+BEGIN:VEVENT
+UID:offsite@example.org
+DTSTAMP:20261001T080000Z
+DTSTART;VALUE=DATE:20261016
+DTEND;VALUE=DATE:20261017
+SUMMARY:Team offsite (all day)
+END:VEVENT
+END:VCALENDAR
