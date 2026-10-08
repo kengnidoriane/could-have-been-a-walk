@@ -64,3 +64,47 @@ wins. The search stops early once a loop is within ±5% and retraces at most 25%
 queues requests at most one per 1.1 s, rounds coordinates to 5 decimals (≈1 m) and caches every
 answer in memory and on disk (`apps/api/.cache/osrm`). `OSRM_BASE_URL` points to any OSRM-compatible
 server: the `WalkRouter` interface in `packages/core` is all the loop search needs.
+
+## D-007 · Gemma reads, a formula weighs (2026-10-08)
+
+First version: Gemma returned `{score, reason}` directly. On the sample week, Gemma 3 4B gave
+"Q4 budget decision with Kofi" (2 people) **3/10** and a mentoring call 6/10 with the reason
+"1:1 mentoring, no screen needed". Putting `reason` before `score` (the schema's key order is
+enforced by the grammar) and adding calibration examples made it _worse_: an 8-person stand-up got
+8/10 and mentoring got 1/10.
+
+Small models are good readers and bad judges of numbers. So Gemma now **classifies**: `kind`
+(one_on_one, mentoring, decision, review, presentation…), `needsScreen`, and a one-line `reason`.
+`scoreFromSignals` in `packages/core` turns that into 0–10 with one visible formula (kind base,
+screen cap, headcount, length, remote attendees). The keyword fallback produces the same signals
+and goes through the same formula. Result on the sample week: every score matches intuition.
+Gemma's added value is reading free text (any language, any phrasing), not doing arithmetic.
+
+Same lesson for agendas. Asked to choose which checkpoint ends each topic, Gemma gave the main
+decision 3 minutes and the wrap-up 20. Now Gemma writes the topics, opening questions and a
+weight (1 short, 2 medium, 3 long). Code places the boundaries on the route's checkpoints in
+proportion to the weights.
+
+## D-008 · Structured output: JSON schema in Ollama's `format` (2026-10-08)
+
+Measured on this laptop with the real scoring prompt (3 meetings each): JSON-schema `format`
+16.6–17.2 s, `format: "json"` 19.4–28.2 s, no format 19.1–25.7 s (which also wraps answers in
+markdown fences). The constrained grammar is the fastest _and_ the safest. Answers are still
+validated with zod; one retry feeds the validation error back; then the deterministic fallback.
+
+## D-009 · Default model: gemma4:e2b (supersedes part of D-002) (2026-10-08)
+
+`ollama ps` shows **100% CPU**: Intel i5-8265U (4 cores, 2018), Intel UHD 620, no usable GPU.
+With Gemma 3 4B, one meeting takes 15–20 s: ~270 prompt tokens read at ~25 tok/s, ~35 tokens
+written at ~4 tok/s. Ollama did not reuse the cached prompt prefix between calls, so the system
+prompt was cut to the essentials.
+E2B has half the effective parameters of a 4B model, about twice as fast on CPU, and is a smaller
+download on an unstable connection. Default `OLLAMA_MODEL=gemma4:e2b`; fallbacks: gemma4:e4b,
+then gemma3:4b. To pull: `ollama pull gemma4:e2b` (optionally `ollama pull gemma4:e4b` to compare
+with `pnpm --filter @cbaw/api try-score`).
+
+## D-010 · Background scoring yields to the meeting being planned (2026-10-08)
+
+Ollama answers one request at a time. The Plan page scores meetings one by one (earliest first) so
+the list fills in progressively. The Route page pauses that queue after the current meeting, so
+its agenda request doesn't wait behind the rest of the week.
