@@ -36,6 +36,11 @@ const escapeHtml = (text: string) =>
 
 const toLatLng = (p: LatLon): L.LatLngTuple => [p.lat, p.lon];
 
+/** OpenStreetMap's volunteer-run tiles by default; point this at a tile provider for heavy use. */
+const TILE_URL =
+  (import.meta.env.VITE_TILE_URL as string | undefined) ??
+  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+
 const startIcon = L.divIcon({
   className: 'map-start',
   html: '<span aria-hidden="true">⌂</span>',
@@ -70,8 +75,10 @@ export function MapView(props: MapViewProps) {
   useEffect(() => {
     if (!element.current) return;
     const m = L.map(element.current, { zoomControl: true, attributionControl: true });
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer(TILE_URL, {
       maxZoom: 19,
+      // CORS mode: lets the service worker keep tiles for offline walks without opaque padding.
+      crossOrigin: true,
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(m);

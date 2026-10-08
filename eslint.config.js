@@ -29,5 +29,9 @@ export default tseslint.config(
     files: ['apps/api/**/*.ts', '**/*.config.{js,ts}', 'scripts/**/*.{js,ts}'],
     languageOptions: { globals: globals.node },
   },
+  {
+    files: ['apps/web/public/sw.js'],
+    languageOptions: { globals: globals.serviceworker },
+  },
   prettier,
 );

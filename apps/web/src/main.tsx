@@ -10,3 +10,8 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// Installable, and the walk page keeps working when the network doesn't.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  void navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+}
