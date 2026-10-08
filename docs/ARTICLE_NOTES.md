@@ -50,6 +50,22 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
   The app says so instead of pretending.
 - `pnpm --filter @cbaw/api try-loop <lat> <lon> <minutes> <runs>` reproduces these numbers.
 
+## M3 · Plan on the laptop (2026-10-08)
+
+- Plan page: drop a `.ics` (or "Try a sample week"), meetings grouped by day. Parsing happens in
+  the browser with the same `packages/core` code the tests cover.
+- Route page: Leaflet + OpenStreetMap tiles, the loop in forest green, street landmarks as dots.
+  "Move start" (click the map) / "Use my location", Brisk 4.5 km/h vs Gentle 3.5 km/h, "Another loop".
+- Example on the downtown demo office: "41 min loop for a 45 min meeting · 3.0 km · back 4 min
+  before the end".
+- Privacy by construction: hash routing (`#/route/…`) keeps the app static, and the calendar lives
+  in `sessionStorage`, gone when the tab closes. The display font (Fraunces) is bundled, not
+  loaded from Google Fonts: one less third party seeing your IP.
+- Tiny React lesson for the post: under StrictMode the effect cleanup ran before `.finally`, so
+  the spinner spun forever. Fixed by _deriving_ "loading" from state instead of storing it.
+
 ### Screenshots to take
 
-- (none yet)
+- Plan page with the sample week loaded (empty state with the drop zone too).
+- Route page: downtown Monrovia loop, full-width map, "41 min loop for a 45 min meeting".
+- The "Move start" crosshair moment (click on the map → new loop).
