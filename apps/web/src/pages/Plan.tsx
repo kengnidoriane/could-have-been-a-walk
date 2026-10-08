@@ -4,8 +4,9 @@ import { Dropzone } from '../components/Dropzone';
 import { Header } from '../components/Header';
 import { MeetingCard } from '../components/MeetingCard';
 import { ScoreBadge } from '../components/ScoreBadge';
+import { DEMO_WALK } from '../lib/demoWalk';
 import { dayKey, formatShortDay, relativeDay } from '../lib/format';
-import { prettyModel } from '../lib/health';
+import { prettyModel, useModelStatus } from '../lib/health';
 import { navigate, paths } from '../lib/router';
 import { sampleMeetings } from '../lib/sample';
 import { cancelScoring, scoreMeetings, useScoringStatus } from '../lib/scoring';
@@ -54,6 +55,27 @@ function ScoringLine({ meetings }: { meetings: Meeting[] }) {
         ? 'No obvious walks this week. Scores of 4 to 6 are worth a try.'
         : `${walks} meeting${walks > 1 ? 's' : ''} could be a walk.`}
     </p>
+  );
+}
+
+function DemoInvite() {
+  const status = useModelStatus();
+  return (
+    <section className="demo-invite">
+      {status.state === 'no-api' && (
+        <p className="note">
+          Planning runs on your own computer: Gemma and the route search live in the local app (see
+          the README). This page can&rsquo;t reach it, but the phone side works anywhere.
+        </p>
+      )}
+      <a className="btn btn-ghost" href={`#${paths.walk(DEMO_WALK)}`}>
+        📱 No setup? Open a real demo walk
+      </a>
+      <p className="muted small">
+        A 45-minute meeting turned into a 3.2 km loop in downtown Monrovia. On the walk page, tap
+        &ldquo;Demo: replay a walk at 10×&rdquo; to see TURN BACK NOW.
+      </p>
+    </section>
   );
 }
 
@@ -112,6 +134,7 @@ export function Plan() {
             }}
             error={error}
           />
+          <DemoInvite />
         </main>
       </>
     );

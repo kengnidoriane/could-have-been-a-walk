@@ -1083,3 +1083,21 @@ code {
   font-size: 3rem;
   margin: 1rem 0 0;
 }
+
+.demo-invite {
+  margin-top: 2rem;
+  text-align: center;
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+}
+
+.demo-invite .note {
+  text-align: left;
+  max-width: 38rem;
+}
+
+.small {
+  font-size: 0.9rem;
+  max-width: 34rem;
+}

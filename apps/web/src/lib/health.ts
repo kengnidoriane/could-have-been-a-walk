@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { fetchHealth, type Health } from './api';
+import { useSyncExternalStore } from 'react';
+import { fetchHealth } from './api';
 
 export type ModelStatus =
   | { state: 'checking' }
@@ -7,30 +7,42 @@ export type ModelStatus =
   | { state: 'no-model'; preferred: string }
   | { state: 'no-api' };
 
-/** Which local model is answering, refreshed every 30 s (e.g. right after `ollama pull`). */
-export function useModelStatus(): ModelStatus {
-  const [status, setStatus] = useState<ModelStatus>({ state: 'checking' });
-  useEffect(() => {
-    let alive = true;
-    const check = () =>
-      fetchHealth()
-        .then((h: Health) => {
-          if (!alive) return;
-          setStatus(
-            h.llm.model
-              ? { state: 'ready', model: h.llm.model, preferred: h.llm.preferred }
-              : { state: 'no-model', preferred: h.llm.preferred },
-          );
-        })
-        .catch(() => alive && setStatus({ state: 'no-api' }));
+// One shared check, refreshed every 30 s (e.g. right after `ollama pull`), for every component
+// that wants to know which brain is answering.
+
+let status: ModelStatus = { state: 'checking' };
+const listeners = new Set<() => void>();
+let timer: ReturnType<typeof setInterval> | null = null;
+
+async function check() {
+  try {
+    const h = await fetchHealth();
+    status = h.llm.model
+      ? { state: 'ready', model: h.llm.model, preferred: h.llm.preferred }
+      : { state: 'no-model', preferred: h.llm.preferred };
+  } catch {
+    status = { state: 'no-api' };
+  }
+  listeners.forEach((l) => l());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  if (!timer) {
     void check();
-    const id = setInterval(check, 30_000);
-    return () => {
-      alive = false;
-      clearInterval(id);
-    };
-  }, []);
-  return status;
+    timer = setInterval(check, 30_000);
+  }
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0 && timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+  };
+}
+
+export function useModelStatus(): ModelStatus {
+  return useSyncExternalStore(subscribe, () => status);
 }
 
 /** "gemma3:4b" → "Gemma 3 4B", "gemma4:e2b" → "Gemma 4 E2B". */
