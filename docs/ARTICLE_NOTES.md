@@ -18,6 +18,18 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - Toolchain surprise: TypeScript 7 (native Go compiler) was "latest", but typescript-eslint doesn't
   support it yet. Pinned 6.0. A small reminder that the newest isn't always the right choice in a 4-day sprint.
 
+## M1 · Calendar in, calendar out (2026-10-08)
+
+- `packages/core/ics.ts` reads a real-world `.ics`: time zones (a Paris meeting lands at the right
+  UTC minute), weekly recurrences with a skipped day and a moved occurrence, all-day and cancelled
+  events dropped, meeting rooms not counted as people, Zoom/Meet/Teams links flagged.
+- The walking invite we generate is parsed back by ical.js in the tests (round-trip), folded to 75
+  octets and CRLF, as RFC 5545 asks. Calendar apps are picky, so the tests check that.
+- `geo.ts` gotcha worth a sentence: on a **loop**, the start and the finish are the same point. "Where
+  am I on the route?" has two right answers at the office. The projection takes a search window, and
+  ties go to the start. This matters a lot for TURN BACK NOW later.
+- 30 unit tests at the end of M1.
+
 ### Screenshots to take
 
 - (none yet)
