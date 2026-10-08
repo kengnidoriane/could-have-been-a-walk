@@ -186,7 +186,54 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - Route page with the rain warning and the "Shorter loop" button.
 - Arrival screen with the weekly stat.
 
-### Screenshots to take
+## M9 · Polish (2026-10-08) · tagged v1.0.0
+
+- Phone page code-split: opening a walk link loads ~125 kB gzipped (React, Leaflet, the walk
+  code) and not the calendar parser, the QR generator or the recorder. `packages/core` is marked
+  side-effect free so its modules split cleanly.
+- Installable PWA: manifest, icons drawn from the logo, and a small service worker. App shell
+  cached, the local API never cached, map tiles already seen kept for offline walks (CORS mode,
+  capped at 400, no prefetching). Not verifiable in the desktop app's built-in browser (it refuses
+  service workers): **check on a phone after deploy.**
+- A real demo walk is baked in and linked from the empty plan page and the README: anyone can try
+  the phone side, TURN BACK NOW included, without installing anything.
+- CI on GitHub Actions (lint, format, typecheck, tests, build); GitHub Pages deploy of the static
+  walk page.
+- Accessibility: visible focus everywhere (sun-coloured outline), labelled map regions, live
+  regions for scoring progress and walk status, TURN BACK NOW as an `alertdialog` with focus on
+  its button, no pulsing with reduced motion. Contrast computed for every pair (WCAG AA): muted
+  text 5.45:1 on sand, white on clay 5.38:1. The TURN BACK NOW pulse used to brighten to 4.09:1,
+  too low for its small text, so it now darkens instead (7.0:1).
+
+## Numbers worth quoting
+
+| What                                        | Number                                                         |
+| ------------------------------------------- | -------------------------------------------------------------- |
+| Loop accuracy, downtown Monrovia (3 tries)  | +0.2%, +4.7%, +4.6% of the target, 0% retraced                 |
+| Loop accuracy, Sinkor grid (3 tries)        | −2.6%, −0.1%, −3.3%, ~23% retraced                             |
+| Routing calls per loop                      | 7–12 (8–13 s at 1 request/second)                              |
+| Gemma 3 4B on a 2018 i5 CPU, one meeting    | 15–20 s (~270 prompt tokens at ~25 tok/s, ~35 out at ~4 tok/s) |
+| Agenda / recap on the same CPU              | ~40 s / ~45 s                                                  |
+| Walk link for a 3.2 km loop + agenda        | 523 characters                                                 |
+| Phone page download                         | ~125 kB gzipped                                                |
+| Slow walker (0.7×) without / with the alert | 15 min late / back on time (alert at minute ~20.6)             |
+| Demo replay, start to TURN BACK NOW         | ~2.8 min of real time (minute 28 of the meeting)               |
+| Unit tests                                  | 122 (89 core, 33 API)                                          |
+
+## Possible outline for the post
+
+1. The joke ("could have been an email") and the twist (a walk), in one paragraph.
+2. Why the AI is local: the calendar is sensitive, the laptop is from 2018, Monrovia's network.
+3. "Gemma reads, code weighs": the two times a small model was asked for numbers and got them
+   wrong (scores, agenda timing), and the fix both times. Probably the most useful section.
+4. Monrovia vs. the loop algorithm: water on two sides, cul-de-sacs, quantized loops, and the
+   snapping distance as a free "this is the ocean" detector.
+5. TURN BACK NOW: the last responsible moment, the simulated walkers, the bug the tests missed
+   and the browser caught.
+6. The whole walk in a URL fragment: no server, no tracking, works offline.
+7. What's next / honest limits (CPU latency, cul-de-sac neighbourhoods, audio needs Gemma 4).
+
+### Screenshots to take (M3)
 
 - Plan page with the sample week loaded (empty state with the drop zone too).
 - Route page: downtown Monrovia loop, full-width map, "41 min loop for a 45 min meeting".
