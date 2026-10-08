@@ -29,7 +29,7 @@ _Coming soon._
 
 | Variable               | Default                                        | What it does                                          |
 | ---------------------- | ---------------------------------------------- | ----------------------------------------------------- |
-| `OLLAMA_MODEL`         | `gemma4:e4b`                                   | Gemma model used by the local API (via Ollama)        |
+| `OLLAMA_MODEL`         | `gemma4:e2b`                                   | Gemma model used by the local API (via Ollama)        |
 | `OLLAMA_HOST`          | `http://127.0.0.1:11434`                       | Where Ollama listens                                  |
 | `OSRM_BASE_URL`        | `https://routing.openstreetmap.de/routed-foot` | Any OSRM-compatible server with a foot profile        |
 | `API_PORT`             | `8787`                                         | Local API port                                        |
