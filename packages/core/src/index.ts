@@ -5,3 +5,4 @@ export * from './loop';
 export * from './polyline';
 export * from './units';
 export * from './walkability';
+export * from './walkPlan';
