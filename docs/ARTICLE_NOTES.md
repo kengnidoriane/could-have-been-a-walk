@@ -98,6 +98,26 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - Route page with the agenda timeline and the 3 numbered pins on the map.
 - The model pill in the header ("Gemma 3 4B · on this computer").
 
+## M5 · From laptop to phone (2026-10-08)
+
+- "Export invite (.ics)": a brand-new event (not an edit of the original) with the start point
+  as LOCATION + GEO, the walk link as URL, and the agenda by segment in the description. It's a
+  file you attach or forward; the app never sends email.
+- "Send to phone (QR)": the **whole walk lives in the link**: title, end time, pace, the route
+  (simplified to 4 m, encoded polyline) and the agenda, as compact JSON → deflate → base64url.
+  A real 3.2 km downtown loop with a 3-topic agenda is a **523-character** URL. The phone needs
+  no account, no API, no model.
+- It's in the URL **fragment** (`#/walk?d=…`), which browsers never send to the server: even the
+  static host serving the walk page never sees your route.
+- Gotcha worth a line: phones only give GPS (and wake lock, vibration) to **HTTPS** pages, and a
+  phone can't open `localhost`. Hence `pnpm dev:phone` (Vite + self-signed cert on the Wi-Fi) and
+  `VITE_PUBLIC_WALK_URL` for the deployed walk page. The QR dialog warns when the link is local.
+
+### Screenshots to take (M5)
+
+- The QR dialog over the route page ("Scan to walk").
+- The imported invite in a calendar app (Google Calendar / Outlook), showing the agenda by segment.
+
 ### Screenshots to take
 
 - Plan page with the sample week loaded (empty state with the drop zone too).
