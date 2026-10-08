@@ -30,6 +30,26 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
   ties go to the start. This matters a lot for TURN BACK NOW later.
 - 30 unit tests at the end of M1.
 
+## M2 · A loop that lasts exactly one meeting (2026-10-08)
+
+- `findLoop` places 3 waypoints on a circle that passes through the office (an inscribed square),
+  then adjusts the radius with a bounded search: proportional steps, then regula falsi once the
+  target is bracketed. Several directions are tried and the best loop wins.
+- **The unit tests were green, and the first live run was still bad.** Real numbers from Monrovia,
+  30-minute meeting → 27-minute target (2.03 km at 4.5 km/h):
+  - v1: within ±5%, but the "loops" retraced 26–40% of their length (dead-end alleys).
+  - v2 (cut every dead end): −38% misses. Clean loop lengths are _quantized_ by the street network:
+    1.26 km, 1.92 km, then 4.2 km, and 2 m of radius can jump from one to the next.
+  - v3 (cut only short spurs, skip directions where waypoints snap far into water, opposite
+    directions first): downtown **+0.2%, +4.7%, +4.6%, 0% retraced**; Sinkor grid **−2.6%, −0.1%,
+    −3.3%, ~23% retraced**. 7–12 routing calls, 8–13 s at the volunteer server's 1 request/second.
+- Story line: **Monrovia is squeezed between the Atlantic and the Mesurado River.** Half of any
+  circle you draw is water. OSRM tells you how far it had to move each waypoint to find a path:
+  that number is a free "this is the ocean" detector.
+- Honest limit: in a cul-de-sac neighbourhood (Lakpazee) there are no loops, only out-and-backs.
+  The app says so instead of pretending.
+- `pnpm --filter @cbaw/api try-loop <lat> <lon> <minutes> <runs>` reproduces these numbers.
+
 ### Screenshots to take
 
 - (none yet)
