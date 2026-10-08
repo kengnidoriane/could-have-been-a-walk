@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { haversine, type LatLon } from '../src/geo';
-import { extractLandmarks, findLoop, loopWaypoints, NoLoopError, overlapRatio } from '../src/loop';
+import { destination, haversine, type LatLon } from '../src/geo';
+import {
+  cleanPath,
+  extractLandmarks,
+  findLoop,
+  loopWaypoints,
+  NoLoopError,
+  overlapRatio,
+  removeSpurs,
+  RouterUnavailableError,
+} from '../src/loop';
 import { FakeRouter } from './fakeRouter';
 
 const OFFICE: LatLon = { lat: 6.2907, lon: -10.7605 };
@@ -136,5 +145,92 @@ describe('extractLandmarks', () => {
       'Street 13',
       'Street 19',
     ]);
+  });
+});
+
+describe('findLoop when the routing service is down', () => {
+  it('fails fast instead of trying every bearing', async () => {
+    let calls = 0;
+    const router = {
+      async route(): Promise<never> {
+        calls++;
+        throw new RouterUnavailableError('HTTP 503');
+      },
+    };
+    await expect(findLoop(router, { start: OFFICE, minutes: 30 })).rejects.toThrow(
+      RouterUnavailableError,
+    );
+    expect(calls).toBe(1);
+  });
+});
+
+describe('removeSpurs / cleanPath', () => {
+  const north = (from: LatLon, m: number) => destination(from, 0, m);
+  const east = (from: LatLon, m: number) => destination(from, 90, m);
+
+  it('cuts a short walk into an alley and back', () => {
+    const a = OFFICE;
+    const b = east(a, 300);
+    const alley = north(b, 40);
+    const alleyEnd = north(alley, 30);
+    const c = east(b, 300);
+    // a → b → [alley → alleyEnd → alley] → b → c: 140 m of dead end, gone.
+    expect(removeSpurs([a, b, alley, alleyEnd, alley, b, c])).toEqual([a, b, c]);
+  });
+
+  it('keeps a long out-and-back (to the beach and back)', () => {
+    const a = OFFICE;
+    const b = east(a, 300);
+    const beach = north(b, 400);
+    const c = east(b, 300);
+    expect(removeSpurs([a, b, beach, b, c])).toHaveLength(5);
+  });
+
+  it('re-measures the distance and drops steps that were on a spur', () => {
+    const corner = east(OFFICE, 500);
+    const spurEnd = north(corner, 50);
+    const back = east(corner, 500);
+    const path = {
+      points: [OFFICE, corner, spurEnd, corner, back],
+      distanceM: 1100,
+      steps: [
+        { name: 'Main', along: 0, location: OFFICE },
+        { name: 'Dead End', along: 500, location: spurEnd },
+        { name: 'Beach Road', along: 600, location: corner },
+      ],
+    };
+    const clean = cleanPath(path);
+    expect(clean.points).toHaveLength(3);
+    expect(clean.distanceM).toBeCloseTo(1000, 0);
+    expect(clean.steps.map((s) => s.name)).toEqual(['Main', 'Beach Road']);
+    expect(clean.steps[1]!.along).toBeCloseTo(500, 0);
+  });
+
+  it('returns the same path when there is nothing to cut', () => {
+    const path = { points: [OFFICE, east(OFFICE, 100)], distanceM: 100, steps: [] };
+    expect(cleanPath(path)).toBe(path);
+  });
+});
+
+describe('findLoop near water', () => {
+  it('abandons a direction whose waypoints had to snap far away', async () => {
+    const router = new FakeRouter();
+    const wet = {
+      async route(waypoints: LatLon[]) {
+        const path = await router.route(waypoints);
+        // Pretend the first direction tried is the Atlantic: waypoints snap 400 m inland.
+        const first = router.calls[0]![2]!;
+        const inSea = haversine(first, waypoints[2]!) < 1;
+        return { ...path, snapDistancesM: [0, inSea ? 400 : 5, inSea ? 400 : 5, 5, 0] };
+      },
+    };
+    const loop = await findLoop(wet, {
+      start: OFFICE,
+      minutes: 30,
+      seed: 9,
+      maxCallsPerBearing: 4,
+    });
+    expect(router.calls.length).toBeLessThanOrEqual(5);
+    expect(loop.withinTolerance).toBe(true);
   });
 });

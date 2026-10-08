@@ -1,4 +1,4 @@
-import { destination, haversine, makeRoute, type LatLon } from './geo';
+import { destination, haversine, makeRoute, projectOnRoute, type LatLon } from './geo';
 import {
   DEFAULT_BUFFER_MIN,
   DEFAULT_SPEED_KMH,
@@ -17,6 +17,8 @@ export interface RoutedPath {
   points: LatLon[];
   distanceM: number;
   steps: RouteStep[];
+  /** How far each waypoint had to move to reach a walkable way, metres (if the router says). */
+  snapDistancesM?: number[];
 }
 
 /** Anything that can route a walker through waypoints: OSRM, GraphHopper, a test double. */
@@ -38,6 +40,18 @@ export interface LoopRequest {
   maxBearings?: number;
   /** Hard cap on routing calls across all bearings. */
   maxCalls?: number;
+  /** Called after every routing attempt; handy for tracing the search. */
+  onProbe?: (probe: LoopProbe) => void;
+}
+
+export interface LoopProbe {
+  bearing: number;
+  radiusM: number;
+  /** Router distance before dead ends were cut; undefined if the router failed. */
+  rawDistanceM?: number;
+  distanceM?: number;
+  error?: number;
+  failure?: string;
 }
 
 export interface Landmark {
@@ -70,6 +84,8 @@ export interface LoopResult {
 }
 
 export class NoLoopError extends Error {}
+/** The routing service is unreachable or unwell: retrying other directions won't help. */
+export class RouterUnavailableError extends Error {}
 
 /**
  * A square inscribed in a circle of radius `radiusM` that passes through the start.
@@ -155,6 +171,65 @@ export function extractLandmarks(
   );
 }
 
+const samePoint = (a: LatLon, b: LatLon) =>
+  Math.abs(a.lat - b.lat) < 1e-6 && Math.abs(a.lon - b.lon) < 1e-6;
+
+/**
+ * Cut short out-and-back detours: a path that goes A, …, X, …, A becomes A when walking to X
+ * and back is at most `maxSpurM` in total. Those are routing artefacts (a waypoint snapped
+ * into an alley). Longer out-and-backs ("down to the beach and back") are kept: in a sparse
+ * street network they are what makes a loop the right length.
+ */
+export function removeSpurs(points: LatLon[], maxSpurM = 150): LatLon[] {
+  const path = points.filter((p, i) => i === 0 || !samePoint(points[i - 1]!, p));
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let tip = 1; tip < path.length - 1; tip++) {
+      if (!samePoint(path[tip - 1]!, path[tip + 1]!)) continue;
+      // Widen the spur while the way back retraces the way in.
+      let k = 1;
+      while (
+        tip - k - 1 >= 0 &&
+        tip + k + 1 < path.length &&
+        samePoint(path[tip - k - 1]!, path[tip + k + 1]!)
+      ) {
+        k++;
+      }
+      let length = 0;
+      for (let i = tip - k; i < tip; i++) length += haversine(path[i]!, path[i + 1]!);
+      if (2 * length <= maxSpurM) {
+        path.splice(tip - k + 1, 2 * k);
+        changed = true;
+        break;
+      }
+    }
+  }
+  return path;
+}
+
+/**
+ * The router's path without its short dead-end detours. Steps that were on a removed spur
+ * are dropped; the others are re-measured along the cleaned path.
+ */
+export function cleanPath(path: RoutedPath, maxSpurM = 150): RoutedPath {
+  const before = makeRoute(path.points).length;
+  const points = removeSpurs(path.points, maxSpurM);
+  if (points.length === path.points.length || before === 0) return path;
+  const route = makeRoute(points);
+
+  const scale = path.distanceM / before;
+  const steps: RouteStep[] = [];
+  let from = 0;
+  for (const step of path.steps) {
+    const projection = projectOnRoute(route, step.location, { from });
+    if (projection.offset > 20) continue;
+    steps.push({ ...step, along: projection.along * scale });
+    from = projection.along;
+  }
+  return { points, distanceM: route.length * scale, steps };
+}
+
 function farthestPoint(points: LatLon[]): LoopResult['farthest'] {
   const route = makeRoute(points);
   let best = { along: 0, point: points[0]!, distanceM: 0 };
@@ -173,25 +248,34 @@ interface Candidate {
   overlap: number;
 }
 
-/** Lower is better: any loop within tolerance beats any loop outside it. */
+/**
+ * Lower is better. Any loop within tolerance beats any loop outside it; among those, the one
+ * that retraces its steps the least wins.
+ */
 function score(c: Candidate, tolerance: number): number {
-  return (Math.abs(c.error) <= tolerance ? 0 : 1) + Math.abs(c.error) + 0.5 * c.overlap;
+  return (Math.abs(c.error) <= tolerance ? 0 : 1) + Math.abs(c.error) + c.overlap;
 }
+
+/** Good enough to stop searching: right length, mostly a real loop. */
+const isGoodEnough = (c: Candidate, tolerance: number) =>
+  Math.abs(c.error) <= tolerance && c.overlap <= 0.25;
 
 /**
  * Find a walking loop from `start` whose length matches the meeting.
  *
  * For each bearing, a bounded search adjusts the radius: proportional steps until the target
  * is bracketed, then regula falsi inside the bracket. Street networks make distance(radius)
- * only roughly monotonic, so every probe is kept and the best one wins.
+ * only roughly monotonic (a few metres of radius can snap a waypoint onto another street),
+ * so every probe is kept and the best one wins. Short dead-end detours are cut from every
+ * probe before it is measured.
  */
 export async function findLoop(router: WalkRouter, request: LoopRequest): Promise<LoopResult> {
   const speedKmh = request.speedKmh ?? DEFAULT_SPEED_KMH;
   const bufferMin = request.bufferMin ?? DEFAULT_BUFFER_MIN;
   const tolerance = request.tolerance ?? 0.05;
-  const maxCallsPerBearing = request.maxCallsPerBearing ?? 8;
-  const maxBearings = request.maxBearings ?? 3;
-  const budget = { remaining: request.maxCalls ?? 16 };
+  const maxCallsPerBearing = request.maxCallsPerBearing ?? 4;
+  const maxBearings = Math.min(8, request.maxBearings ?? 6);
+  const budget = { remaining: request.maxCalls ?? 12 };
 
   const targetMin = request.minutes - bufferMin;
   if (targetMin < 5) throw new NoLoopError('Meeting too short for a walk.');
@@ -199,17 +283,21 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
 
   const random = mulberry32(request.seed ?? Math.floor(Math.random() * 2 ** 31));
   const firstBearing = random() * 360;
-  const bearings = Array.from(
-    { length: maxBearings },
-    (_, i) => (firstBearing + (i * 360) / maxBearings) % 360,
-  );
+  // Opposite directions first: if one side is the sea, the other side probably isn't.
+  const bearings = [0, 180, 90, 270, 45, 225, 135, 315]
+    .slice(0, maxBearings)
+    .map((offset) => (firstBearing + offset) % 360);
 
   const candidates: Candidate[] = [];
   let calls = 0;
   let lastError: unknown;
+  // Metres of route per metre of radius, learned from each probe to aim the next bearing better.
+  const ratios: number[] = [];
 
   for (const bearing of bearings) {
-    let radius = target / METRES_PER_RADIUS;
+    const metresPerRadius =
+      ratios.length > 0 ? ratios.reduce((a, b) => a + b, 0) / ratios.length : METRES_PER_RADIUS;
+    let radius = target / metresPerRadius;
     let below: { r: number; d: number } | undefined;
     let above: { r: number; d: number } | undefined;
 
@@ -217,13 +305,26 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
       budget.remaining--;
       calls++;
       let path: RoutedPath;
+      let rawDistanceM: number;
       try {
-        path = await router.route(loopWaypoints(request.start, bearing, radius));
+        const raw = await router.route(loopWaypoints(request.start, bearing, radius));
+        rawDistanceM = raw.distanceM;
+        path = cleanPath(raw);
       } catch (err) {
+        if (err instanceof RouterUnavailableError) throw err;
         lastError = err;
+        request.onProbe?.({ bearing, radiusM: radius, failure: String(err) });
         break; // this direction is a dead end (river, ocean…): try the next bearing
       }
       const error = (path.distanceM - target) / target;
+      request.onProbe?.({
+        bearing,
+        radiusM: radius,
+        rawDistanceM,
+        distanceM: path.distanceM,
+        error,
+      });
+      if (path.distanceM > 0) ratios.push(path.distanceM / radius);
       candidates.push({
         path,
         bearing,
@@ -231,7 +332,11 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
         error,
         overlap: overlapRatio(path.points),
       });
-      if (Math.abs(error) <= tolerance) break;
+      if (isGoodEnough(candidates[candidates.length - 1]!, tolerance)) break;
+      // Waypoints that had to jump far to reach a path were in water or private land: the
+      // loop collapses onto whatever road skirts it. Don't polish this direction, move on.
+      const snaps = path.snapDistancesM?.slice(1, -1) ?? [];
+      if (snaps.some((d) => d > Math.max(60, 0.5 * radius))) break;
 
       if (path.distanceM < target) {
         if (!below || radius > below.r) below = { r: radius, d: path.distanceM };
@@ -256,11 +361,7 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
       radius = next;
     }
 
-    const best = candidates.reduce<Candidate | undefined>(
-      (acc, c) => (!acc || score(c, tolerance) < score(acc, tolerance) ? c : acc),
-      undefined,
-    );
-    if (best && Math.abs(best.error) <= tolerance && best.overlap <= 0.15) break;
+    if (candidates.some((c) => isGoodEnough(c, tolerance))) break;
     if (budget.remaining <= 0) break;
   }
 
@@ -271,6 +372,7 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
   if (!best) {
     throw new NoLoopError(
       `No walkable loop found around this start point${lastError instanceof Error ? `: ${lastError.message}` : '.'}`,
+      { cause: lastError },
     );
   }
 
