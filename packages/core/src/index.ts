@@ -3,6 +3,8 @@ export * from './geo';
 export * from './ics';
 export * from './loop';
 export * from './polyline';
+export * from './simulate';
+export * from './turnBack';
 export * from './units';
 export * from './walkability';
 export * from './walkPlan';
