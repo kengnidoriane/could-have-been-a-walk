@@ -1,0 +1,229 @@
+import { DEFAULT_SPEED_KMH, GENTLE_SPEED_KMH } from '@cbaw/core';
+import { useEffect, useState } from 'react';
+import { Header } from '../components/Header';
+import { MapView } from '../components/MapView';
+import { ApiError, fetchLoop } from '../lib/api';
+import { formatKm, formatMinutes, formatRange, relativeDay } from '../lib/format';
+import { setPreferences, usePreferences } from '../lib/office';
+import { navigate, paths } from '../lib/router';
+import { savePlan, useAppState } from '../lib/store';
+
+const randomSeed = () => Math.floor(Math.random() * 1_000_000);
+
+const LOADING_LINES = [
+  'Asking OpenStreetMap for a loop that fits…',
+  'Steering away from the ocean…',
+  'Trimming dead-end alleys…',
+  'The volunteer routing server takes one request per second. Worth the wait.',
+];
+
+function LoadingLines() {
+  const [i, setI] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setI((n) => (n + 1) % LOADING_LINES.length), 2600);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <p className="loading" role="status" aria-live="polite">
+      <span className="spinner" aria-hidden="true" /> {LOADING_LINES[i]}
+    </p>
+  );
+}
+
+export function RoutePage({ meetingId }: { meetingId: string }) {
+  const meeting = useAppState((s) => s.meetings.find((m) => m.id === meetingId));
+  const plan = useAppState((s) => s.plans[meetingId]);
+  const { office, speedKmh } = usePreferences();
+  const [seed, setSeed] = useState(() => plan?.seed ?? randomSeed());
+  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [picking, setPicking] = useState(false);
+
+  const requestKey = `${seed}|${speedKmh}|${office.lat},${office.lon}|${attempt}`;
+  const planIsCurrent =
+    !!plan &&
+    plan.seed === seed &&
+    plan.speedKmh === speedKmh &&
+    plan.start.lat === office.lat &&
+    plan.start.lon === office.lon;
+  const error = failure?.key === requestKey ? failure.message : null;
+  const loading = !planIsCurrent && !error;
+
+  useEffect(() => {
+    if (!meeting || planIsCurrent) return;
+    const controller = new AbortController();
+    fetchLoop({ start: office, minutes: meeting.durationMin, speedKmh, seed }, controller.signal)
+      .then((loop) => savePlan(meeting.id, { loop, start: office, seed, speedKmh }))
+      .catch((err: unknown) => {
+        if ((err as Error).name === 'AbortError') return;
+        setFailure({
+          key: requestKey,
+          message: err instanceof ApiError ? err.message : 'Something went wrong. Try again.',
+        });
+      });
+    return () => controller.abort();
+  }, [meeting, office, speedKmh, seed, planIsCurrent, requestKey]);
+
+  if (!meeting) {
+    return (
+      <>
+        <Header />
+        <main className="page">
+          <h1>Meeting not found</h1>
+          <p className="muted">Your calendar is only kept for this browser session.</p>
+          <button type="button" className="btn btn-primary" onClick={() => navigate(paths.plan())}>
+            Back to my meetings
+          </button>
+        </main>
+      </>
+    );
+  }
+
+  const loop = planIsCurrent ? plan.loop : null;
+  const spareMin = loop ? Math.max(0, Math.round(meeting.durationMin - loop.durationMin)) : 0;
+  const mostlyOutAndBack = loop && loop.overlapRatio > 0.5;
+
+  return (
+    <>
+      <Header />
+      <main className="page page-route">
+        <div className="route-map">
+          <MapView
+            start={office}
+            loop={loop?.points}
+            landmarks={loop?.landmarks}
+            onPick={
+              picking
+                ? (p) => {
+                    setPreferences({ office: { ...p, label: 'Custom start' } });
+                    setPicking(false);
+                  }
+                : undefined
+            }
+            fitKey={loop ? `${meetingId}:${seed}:${loop.distanceM}` : `${office.lat},${office.lon}`}
+          />
+          {picking && (
+            <p className="map-hint">Click the map where the walk should start and end.</p>
+          )}
+        </div>
+
+        <aside className="route-panel">
+          <button type="button" className="link-back" onClick={() => navigate(paths.plan())}>
+            ← All meetings
+          </button>
+          <p className="eyebrow">
+            {relativeDay(meeting.start)} · {formatRange(meeting.start, meeting.end)}
+          </p>
+          <h1 className="route-title">{meeting.title}</h1>
+
+          <section className="summary" aria-live="polite">
+            {loading && <LoadingLines />}
+            {error && (
+              <div role="alert">
+                <p className="error">{error}</p>
+                <button
+                  type="button"
+                  className="btn btn-small btn-ghost"
+                  onClick={() => setAttempt((n) => n + 1)}
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+            {loop && !loading && (
+              <>
+                <p className="summary-big">
+                  <strong>{formatMinutes(loop.durationMin)}</strong> loop for a{' '}
+                  {formatMinutes(meeting.durationMin)} meeting
+                </p>
+                <p className="muted">
+                  {formatKm(loop.distanceM)} at {speedKmh} km/h · back {spareMin} min before the end
+                </p>
+                {mostlyOutAndBack && (
+                  <p className="note">
+                    Mostly out-and-back: few through streets around here. Try another loop, or move
+                    the start onto a main road.
+                  </p>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="controls" aria-label="Loop settings">
+            <div className="control">
+              <span className="control-label">Start &amp; finish</span>
+              <span className="control-value">{office.label}</span>
+              <div className="row">
+                <button
+                  type="button"
+                  className={`btn btn-small ${picking ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setPicking((p) => !p)}
+                  aria-pressed={picking}
+                >
+                  {picking ? 'Click the map…' : 'Move start'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-small btn-ghost"
+                  onClick={() =>
+                    navigator.geolocation?.getCurrentPosition(
+                      (pos) =>
+                        setPreferences({
+                          office: {
+                            lat: pos.coords.latitude,
+                            lon: pos.coords.longitude,
+                            label: 'My location',
+                          },
+                        }),
+                      () =>
+                        setFailure({
+                          key: requestKey,
+                          message: "Couldn't get your location. Click the map instead.",
+                        }),
+                    )
+                  }
+                >
+                  Use my location
+                </button>
+              </div>
+            </div>
+
+            <div className="control">
+              <span className="control-label" id="pace-label">
+                Pace
+              </span>
+              <div className="segmented" role="radiogroup" aria-labelledby="pace-label">
+                {[
+                  { kmh: DEFAULT_SPEED_KMH, label: 'Brisk' },
+                  { kmh: GENTLE_SPEED_KMH, label: 'Gentle' },
+                ].map((o) => (
+                  <button
+                    key={o.kmh}
+                    type="button"
+                    role="radio"
+                    aria-checked={speedKmh === o.kmh}
+                    className={speedKmh === o.kmh ? 'is-on' : ''}
+                    onClick={() => setPreferences({ speedKmh: o.kmh })}
+                  >
+                    {o.label} <small>{o.kmh} km/h</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <div className="actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={loading}
+              onClick={() => setSeed(randomSeed())}
+            >
+              ↻ Another loop
+            </button>
+          </div>
+        </aside>
+      </main>
+    </>
+  );
+}
