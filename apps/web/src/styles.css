@@ -798,3 +798,32 @@ code {
   color: var(--muted);
   margin-top: 0.6rem;
 }
+
+/* --- QR handoff ------------------------------------------------------------------------------ */
+
+.qr-dialog {
+  border: 0;
+  border-radius: calc(var(--radius) + 6px);
+  padding: 0;
+  max-width: min(440px, calc(100vw - 2rem));
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 20px 60px rgb(29 39 33 / 30%);
+}
+
+.qr-dialog::backdrop {
+  background: rgb(29 39 33 / 45%);
+}
+
+.qr-body {
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.qr-canvas {
+  display: block;
+  margin: 1rem auto;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "try-loop": "tsx scripts/try-loop.ts",
-    "try-score": "tsx scripts/try-score.ts"
+    "try-score": "tsx scripts/try-score.ts",
+    "dev:phone": "tsx watch src/server.ts"
   },
   "dependencies": {
     "@cbaw/core": "workspace:*",

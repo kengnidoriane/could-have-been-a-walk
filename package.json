@@ -11,6 +11,7 @@
   "packageManager": "pnpm@10.33.4",
   "scripts": {
     "dev": "pnpm --filter @cbaw/api --filter @cbaw/web --parallel run dev",
+    "dev:phone": "pnpm --filter @cbaw/api --filter @cbaw/web --parallel run dev:phone",
     "dev:api": "pnpm --filter @cbaw/api run dev",
     "dev:web": "pnpm --filter @cbaw/web run dev",
     "build": "pnpm -r --if-present run build",

@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AgendaTimeline } from '../components/AgendaTimeline';
 import { Header } from '../components/Header';
 import { MapView, type MapPin } from '../components/MapView';
+import { QRHandoff } from '../components/QRHandoff';
 import { ApiError, fetchAgenda, fetchLoop } from '../lib/api';
 import { formatKm, formatMinutes, formatRange, relativeDay } from '../lib/format';
 import { prettyModel } from '../lib/health';
@@ -17,6 +18,7 @@ import { setPreferences, usePreferences } from '../lib/office';
 import { navigate, paths } from '../lib/router';
 import { setScoringPaused } from '../lib/scoring';
 import { planKey, saveAgenda, savePlan, useAppState } from '../lib/store';
+import { buildWalkUrl, downloadInvite, toWalkPlan } from '../lib/walkLink';
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 
@@ -107,6 +109,23 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
   }, [meeting, plan, planIsCurrent, agendaIsCurrent]);
 
   const route = useMemo(() => (loop ? makeRoute(loop.points) : null), [loop]);
+  // The walk link carries everything the phone needs; rebuilt when the plan or agenda changes.
+  const [walkUrl, setWalkUrl] = useState<string | null>(null);
+  const [showQr, setShowQr] = useState(false);
+  useEffect(() => {
+    if (!meeting || !loop || !agendaIsCurrent) {
+      setWalkUrl(null);
+      return;
+    }
+    let alive = true;
+    void buildWalkUrl(toWalkPlan(meeting, loop, agenda.segments, office)).then(
+      (url) => alive && setWalkUrl(url),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [meeting, loop, agenda, agendaIsCurrent, office]);
+
   const pins = useMemo<MapPin[]>(() => {
     if (!route || !loop || !agendaIsCurrent) return [];
     // Agenda distances use the router's metres; the drawn polyline may differ by a hair.
@@ -297,6 +316,27 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
           <div className="actions">
             <button
               type="button"
+              className="btn btn-primary"
+              disabled={!walkUrl}
+              onClick={() => setShowQr(true)}
+            >
+              Send to phone (QR)
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={!walkUrl || !loop || !agendaIsCurrent}
+              onClick={() =>
+                walkUrl &&
+                loop &&
+                agendaIsCurrent &&
+                downloadInvite(meeting, loop, agenda.segments, office, walkUrl)
+              }
+            >
+              Export invite (.ics)
+            </button>
+            <button
+              type="button"
               className="btn btn-ghost"
               disabled={loading}
               onClick={() => setSeed(randomSeed())}
@@ -306,6 +346,7 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
           </div>
         </aside>
       </main>
+      {showQr && walkUrl && <QRHandoff url={walkUrl} onClose={() => setShowQr(false)} />}
     </>
   );
 }
