@@ -193,8 +193,8 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
   side-effect free so its modules split cleanly.
 - Installable PWA: manifest, icons drawn from the logo, and a small service worker. App shell
   cached, the local API never cached, map tiles already seen kept for offline walks (CORS mode,
-  capped at 400, no prefetching). Not verifiable in the desktop app's built-in browser (it refuses
-  service workers): **check on a phone after deploy.**
+  capped at 400, no prefetching). The desktop app's browser refused it on localhost, but on the
+  deployed site (GitHub Pages, HTTPS) it activates: app shell and viewed tiles land in the caches.
 - A real demo walk is baked in and linked from the empty plan page and the README: anyone can try
   the phone side, TURN BACK NOW included, without installing anything.
 - CI on GitHub Actions (lint, format, typecheck, tests, build); GitHub Pages deploy of the static
