@@ -164,3 +164,14 @@ padded the list to 8 with invented tasks ("Monitor Q3 spend", "Prepare January l
 plan"). Fixes: the prompt says most walks produce 0–4 items and an empty list is fine, the schema
 allows 6 at most, and `groundedActions` drops items whose owner, due date or most of whose words
 don't appear in what was said. Second run: exactly the 3 real items, in 44 s.
+
+## D-016 · Weather and the weekly stat (2026-10-08)
+
+- **Rain:** the Route page asks Open-Meteo (free, no key, CC BY 4.0) for the hourly forecast at
+  the start point, rounded to 2 decimals (~1 km): enough for weather, and the service doesn't
+  learn the exact office. Warning when the meeting's hours reach ≥ 60% chance or ≥ 2 mm. The
+  fix offered is a **shorter loop** (60% of the meeting, at least 15 min): walk the important
+  part, finish at the desk. The phone's "back by" moves earlier to match.
+- **Weekly stat:** walks are saved where they happen (the phone's localStorage), so the stat
+  shows on the phone's start and arrival screens, and on the laptop for walks run there. Demo
+  replays count but are labelled. Records use real time, not the replay's simulated clock.

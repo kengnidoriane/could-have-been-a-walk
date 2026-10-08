@@ -171,6 +171,21 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 
 - Recap page with the consent box ticked, then the result (decisions / action items / owners).
 
+## M8 · Rain and the weekly stat (2026-10-08)
+
+- Real forecast on the first try, for the sample mentoring meeting: "☔ Rain likely around
+  4:00 PM (87%, 0.7 mm)". **Monrovia gets around 5 metres of rain a year**; a walking-meeting app
+  here has to check the sky first. One tap: "Shorter loop (24 min)" → "21 min loop for a 40 min
+  meeting · back after 24 min, the last 16 min at the desk".
+- Weekly mini-stat: "This week: 3 walks · 4.2 km · 1 h 35 away from the chair".
+- Bug caught in the browser: demo walks were stored with the replay's simulated clock (next
+  Monday) and didn't count as "this week". Records now use real time.
+
+### Screenshots to take (M8)
+
+- Route page with the rain warning and the "Shorter loop" button.
+- Arrival screen with the weekly stat.
+
 ### Screenshots to take
 
 - Plan page with the sample week loaded (empty state with the drop zone too).

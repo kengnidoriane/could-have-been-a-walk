@@ -54,7 +54,8 @@ TURN BACK NOW without leaving your chair.
 
 - Your calendar is parsed in your browser and scored by a model **on your machine**. It is never uploaded.
 - The local API listens on `127.0.0.1` only.
-- The only network calls are map tiles (OpenStreetMap), walking routes (OSRM) and, optionally, weather.
+- The only network calls are map tiles (OpenStreetMap), walking routes (OSRM) and the rain forecast
+  (Open-Meteo, with the start point rounded to ~1 km).
 - No analytics, no accounts, no cookies.
 
 ## Credits
@@ -66,6 +67,10 @@ This project stands on open-source shoulders:
 - **[OpenStreetMap](https://www.openstreetmap.org/copyright)** contributors: map data © OpenStreetMap contributors, ODbL.
 - **[OSRM](https://project-osrm.org)** (BSD-2-Clause) and the **[FOSSGIS](https://fossgis.de) routing server** at `routing.openstreetmap.de`: walking routes.
 - **[ical.js](https://github.com/kewisch/ical.js)** (MPL-2.0): calendar parsing.
+- **[Open-Meteo](https://open-meteo.com)** (data CC BY 4.0): the rain forecast.
+- **[Leaflet](https://leafletjs.com)** (BSD-2-Clause): the maps.
+- **[node-qrcode](https://github.com/soldair/node-qrcode)** (MIT): the QR handoff.
+- **[Fraunces](https://fonts.google.com/specimen/Fraunces)** (SIL OFL 1.1, via Fontsource): the display font.
 - **[Fastify](https://fastify.dev)** (MIT), **[React](https://react.dev)** (MIT), **[Vite](https://vite.dev)** (MIT), **[Zod](https://zod.dev)** (MIT), **[Vitest](https://vitest.dev)** (MIT).
 
 ## License
