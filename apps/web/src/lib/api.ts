@@ -1,4 +1,11 @@
-import type { AgendaSegment, LatLon, LoopResult, Meeting, WalkabilityScore } from '@cbaw/core';
+import type {
+  AgendaSegment,
+  LatLon,
+  LoopResult,
+  Meeting,
+  Recap,
+  WalkabilityScore,
+} from '@cbaw/core';
 import type { Source } from './store';
 
 // Thin client for the local API (apps/api, proxied by Vite under /api).
@@ -109,4 +116,21 @@ export function fetchAgenda(meeting: Meeting, loop: LoopResult, signal?: AbortSi
     },
     signal,
   );
+}
+
+export interface RecapResponse {
+  transcript: string;
+  recap: Recap;
+  source: Source;
+  model?: string;
+  transcribedBy?: string;
+}
+
+export function fetchRecap(body: {
+  consent: true;
+  title: string;
+  notes?: string;
+  audio?: string[];
+}) {
+  return request<RecapResponse>('/recap', body);
 }

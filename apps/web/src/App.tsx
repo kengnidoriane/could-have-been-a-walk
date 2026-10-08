@@ -1,4 +1,5 @@
 import { Plan } from './pages/Plan';
+import { RecapPage } from './pages/Recap';
 import { RoutePage } from './pages/Route';
 import { WalkPage } from './pages/Walk';
 import { useLocation } from './lib/router';
@@ -12,5 +13,6 @@ export function App() {
     if (data) return <WalkPage key={data} data={data} />;
   }
   if (page === 'route' && id) return <RoutePage key={id} meetingId={id} />;
+  if (page === 'recap' && id) return <RecapPage key={id} meetingId={id} />;
   return <Plan />;
 }

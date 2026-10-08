@@ -39,5 +39,5 @@ export const paths = {
   plan: () => '/',
   route: (meetingId: string) => `/route/${encodeURIComponent(meetingId)}`,
   walk: (data: string) => `/walk?d=${data}`,
-  recap: () => '/recap',
+  recap: (meetingId: string) => `/recap/${encodeURIComponent(meetingId)}`,
 };

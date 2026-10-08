@@ -313,6 +313,11 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
             </div>
           </section>
 
+          <p className="recap-link">
+            Back from the walk?{' '}
+            <a href={`#${paths.recap(meeting.id)}`}>Record a 1-minute recap →</a>
+          </p>
+
           <div className="actions">
             <button
               type="button"

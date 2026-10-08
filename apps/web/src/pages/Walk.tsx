@@ -334,6 +334,10 @@ function Arrived({ plan, view }: { plan: WalkPlan; view: WalkView }) {
           {formatKm(view.walkedM)} walked, {formatMinutes(outsideMin)} away from the chair.
           {view.mode === 'demo' && ' (Demo replay.)'}
         </p>
+        <p className="note">
+          Back at your desk? Open the planner on your computer and record a 1-minute recap: Gemma
+          writes down decisions and action items, and the audio never leaves that computer.
+        </p>
         <MapView
           start={plan.route[0]!}
           loop={plan.route}
