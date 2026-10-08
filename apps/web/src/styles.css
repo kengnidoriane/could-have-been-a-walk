@@ -620,3 +620,181 @@ code {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* --- Model status, scores ------------------------------------------------------------------- */
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 650;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  max-width: 26rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill .dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  flex: none;
+}
+
+.pill-ok .dot {
+  background: #3e9b5f;
+  box-shadow: 0 0 0 3px rgb(62 155 95 / 20%);
+}
+
+.pill-warn .dot {
+  background: var(--sun);
+}
+
+@media (max-width: 640px) {
+  .pill {
+    max-width: 11rem;
+  }
+}
+
+.status-line {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--muted);
+  margin: 0.25rem 0 0;
+  min-height: 1.6rem;
+}
+
+.score {
+  width: 3.6rem;
+  height: 3.6rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  flex: none;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.score strong {
+  font-size: 1.45rem;
+}
+
+.score small {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+.score-good {
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.score-maybe {
+  background: #f7d9b4;
+  color: #6b3d0e;
+}
+
+.score-no {
+  background: #ece4d6;
+  color: var(--muted);
+}
+
+.score-pending {
+  background: #efe7da;
+  color: var(--muted);
+}
+
+.score-pending.is-reading {
+  background: conic-gradient(var(--forest) 0 25%, #efe7da 25% 100%);
+  animation: spin 1.2s linear infinite;
+  mask: radial-gradient(circle, transparent 52%, #000 54%);
+}
+
+.source {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--forest);
+  background: rgb(47 93 80 / 9%);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  margin-left: 0.25rem;
+  vertical-align: 1px;
+}
+
+/* --- Agenda --------------------------------------------------------------------------------- */
+
+.section-title {
+  font-size: 1.2rem;
+  margin: 1.25rem 0 0.75rem;
+}
+
+.agenda {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.agenda li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 14px;
+  transition: background 0.15s ease;
+}
+
+.agenda li.is-active,
+.agenda li:hover {
+  background: var(--paper);
+}
+
+.agenda-num {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--sun);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.agenda li.is-active .agenda-num {
+  background: var(--forest);
+  color: var(--paper);
+}
+
+.agenda-when {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0;
+}
+
+.agenda-topic {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0.1rem 0 0;
+}
+
+.agenda-prompt {
+  color: var(--muted);
+  margin: 0.15rem 0 0;
+}
+
+.source-note {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.6rem;
+}

@@ -1,12 +1,22 @@
-import { DEFAULT_SPEED_KMH, GENTLE_SPEED_KMH } from '@cbaw/core';
-import { useEffect, useState } from 'react';
+import {
+  agendaHeuristic,
+  buildCheckpoints,
+  DEFAULT_SPEED_KMH,
+  GENTLE_SPEED_KMH,
+  makeRoute,
+  pointAt,
+} from '@cbaw/core';
+import { useEffect, useMemo, useState } from 'react';
+import { AgendaTimeline } from '../components/AgendaTimeline';
 import { Header } from '../components/Header';
-import { MapView } from '../components/MapView';
-import { ApiError, fetchLoop } from '../lib/api';
+import { MapView, type MapPin } from '../components/MapView';
+import { ApiError, fetchAgenda, fetchLoop } from '../lib/api';
 import { formatKm, formatMinutes, formatRange, relativeDay } from '../lib/format';
+import { prettyModel } from '../lib/health';
 import { setPreferences, usePreferences } from '../lib/office';
 import { navigate, paths } from '../lib/router';
-import { savePlan, useAppState } from '../lib/store';
+import { setScoringPaused } from '../lib/scoring';
+import { planKey, saveAgenda, savePlan, useAppState } from '../lib/store';
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000);
 
@@ -39,6 +49,11 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
   const [attempt, setAttempt] = useState(0);
   const [picking, setPicking] = useState(false);
 
+  useEffect(() => {
+    setScoringPaused(true);
+    return () => setScoringPaused(false);
+  }, []);
+
   const requestKey = `${seed}|${speedKmh}|${office.lat},${office.lon}|${attempt}`;
   const planIsCurrent =
     !!plan &&
@@ -64,6 +79,46 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
     return () => controller.abort();
   }, [meeting, office, speedKmh, seed, planIsCurrent, requestKey]);
 
+  const loop = planIsCurrent ? plan.loop : null;
+  const agenda = useAppState((s) => s.agendas[meetingId]);
+  const agendaIsCurrent = !!agenda && planIsCurrent && agenda.planKey === planKey(plan);
+  const [activeSegment, setActiveSegment] = useState<number | null>(null);
+
+  // Once the loop is known, ask Gemma to pin the agenda along it.
+  useEffect(() => {
+    if (!meeting || !planIsCurrent || agendaIsCurrent) return;
+    const controller = new AbortController();
+    const key = planKey(plan);
+    fetchAgenda(meeting, plan.loop, controller.signal)
+      .then((a) =>
+        saveAgenda(meeting.id, {
+          planKey: key,
+          segments: a.segments,
+          source: a.source,
+          model: a.model,
+        }),
+      )
+      .catch((err: unknown) => {
+        if ((err as Error).name === 'AbortError') return;
+        const segments = agendaHeuristic(meeting, buildCheckpoints(plan.loop));
+        saveAgenda(meeting.id, { planKey: key, segments, source: 'heuristic' });
+      });
+    return () => controller.abort();
+  }, [meeting, plan, planIsCurrent, agendaIsCurrent]);
+
+  const route = useMemo(() => (loop ? makeRoute(loop.points) : null), [loop]);
+  const pins = useMemo<MapPin[]>(() => {
+    if (!route || !loop || !agendaIsCurrent) return [];
+    // Agenda distances use the router's metres; the drawn polyline may differ by a hair.
+    const scale = route.length / loop.distanceM;
+    return agenda.segments.map((segment, i) => ({
+      label: String(i + 1),
+      title: `${i + 1}. ${segment.topic}`,
+      point: pointAt(route, ((segment.startAlong + segment.endAlong) / 2) * scale),
+      active: activeSegment === i,
+    }));
+  }, [route, loop, agenda, agendaIsCurrent, activeSegment]);
+
   if (!meeting) {
     return (
       <>
@@ -79,7 +134,6 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
     );
   }
 
-  const loop = planIsCurrent ? plan.loop : null;
   const spareMin = loop ? Math.max(0, Math.round(meeting.durationMin - loop.durationMin)) : 0;
   const mostlyOutAndBack = loop && loop.overlapRatio > 0.5;
 
@@ -92,6 +146,7 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
             start={office}
             loop={loop?.points}
             landmarks={loop?.landmarks}
+            pins={pins}
             onPick={
               picking
                 ? (p) => {
@@ -148,6 +203,33 @@ export function RoutePage({ meetingId }: { meetingId: string }) {
               </>
             )}
           </section>
+
+          {loop && (
+            <section className="agenda-wrap" aria-labelledby="agenda-title">
+              <h2 id="agenda-title" className="section-title">
+                Agenda along the way
+              </h2>
+              {agendaIsCurrent ? (
+                <>
+                  <AgendaTimeline
+                    segments={agenda.segments}
+                    active={activeSegment}
+                    onActive={setActiveSegment}
+                  />
+                  <p className="source-note">
+                    {agenda.source === 'gemma' && agenda.model
+                      ? `Pinned to the route by ${prettyModel(agenda.model)}, on this computer.`
+                      : 'Pinned by the fallback rules: Gemma was not available.'}
+                  </p>
+                </>
+              ) : (
+                <p className="loading" role="status">
+                  <span className="spinner" aria-hidden="true" /> Gemma is pinning the agenda to the
+                  route…
+                </p>
+              )}
+            </section>
+          )}
 
           <section className="controls" aria-label="Loop settings">
             <div className="control">

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { navigate, paths } from '../lib/router';
+import { ModelPill } from './ModelPill';
 
 export function Header({ children }: { children?: ReactNode }) {
   return (
@@ -15,7 +16,10 @@ export function Header({ children }: { children?: ReactNode }) {
         <img src="./favicon.svg" alt="" width="28" height="28" />
         <span>Could&rsquo;ve Been a Walk</span>
       </a>
-      <div className="topbar-right">{children}</div>
+      <div className="topbar-right">
+        {children}
+        <ModelPill />
+      </div>
     </header>
   );
 }

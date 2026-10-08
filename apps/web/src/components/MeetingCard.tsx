@@ -8,9 +8,11 @@ interface MeetingCardProps {
   reason?: ReactNode;
   onPick: () => void;
   dimmed?: boolean;
+  /** Shown before the time when meetings aren't grouped by day. */
+  day?: string;
 }
 
-export function MeetingCard({ meeting, badge, reason, onPick, dimmed }: MeetingCardProps) {
+export function MeetingCard({ meeting, badge, reason, onPick, dimmed, day }: MeetingCardProps) {
   const people = meeting.attendeeCount === 1 ? 'Just you' : `${meeting.attendeeCount} people`;
   return (
     <li className={`meeting ${dimmed ? 'is-dimmed' : ''}`}>
@@ -18,6 +20,7 @@ export function MeetingCard({ meeting, badge, reason, onPick, dimmed }: MeetingC
       <div className="meeting-body">
         <h3 className="meeting-title">{meeting.title}</h3>
         <p className="meeting-meta">
+          {day && <span>{day} ·</span>}
           <span>{formatRange(meeting.start, meeting.end)}</span>
           <span aria-hidden="true">·</span>
           <span>{formatMinutes(meeting.durationMin)}</span>

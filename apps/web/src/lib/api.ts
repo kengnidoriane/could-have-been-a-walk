@@ -1,4 +1,5 @@
-import type { LatLon, LoopResult } from '@cbaw/core';
+import type { AgendaSegment, LatLon, LoopResult, Meeting, WalkabilityScore } from '@cbaw/core';
+import type { Source } from './store';
 
 // Thin client for the local API (apps/api, proxied by Vite under /api).
 
@@ -12,13 +13,13 @@ export class ApiError extends Error {
   }
 }
 
-async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+async function request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      method: body === undefined ? 'GET' : 'POST',
+      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });
   } catch (err) {
@@ -40,6 +41,15 @@ async function post<T>(path: string, body: unknown, signal?: AbortSignal): Promi
   return data as T;
 }
 
+export interface Health {
+  ok: boolean;
+  llm: { model: string | null; preferred: string; available: boolean };
+}
+
+export function fetchHealth(signal?: AbortSignal) {
+  return request<Health>('/health', undefined, signal);
+}
+
 export interface LoopParams {
   start: LatLon;
   minutes: number;
@@ -51,5 +61,52 @@ export interface LoopParams {
 export type LoopResponse = LoopResult & { elapsedMs: number };
 
 export function fetchLoop(params: LoopParams, signal?: AbortSignal) {
-  return post<LoopResponse>('/loop', params, signal);
+  return request<LoopResponse>('/loop', params, signal);
+}
+
+export interface ScoreResponse extends WalkabilityScore {
+  id: string;
+  source: Source;
+  model?: string;
+  ms?: number;
+}
+
+/** Only the fields the model needs leave the page, and only to localhost. */
+export async function fetchScore(meeting: Meeting, signal?: AbortSignal): Promise<ScoreResponse> {
+  const { id, title, description, location, durationMin, attendeeCount, hasVideoLink } = meeting;
+  const { scores } = await request<{ scores: ScoreResponse[] }>(
+    '/score',
+    { meetings: [{ id, title, description, location, durationMin, attendeeCount, hasVideoLink }] },
+    signal,
+  );
+  return scores[0]!;
+}
+
+export interface AgendaResponse {
+  segments: AgendaSegment[];
+  source: Source;
+  model?: string;
+  ms?: number;
+}
+
+export function fetchAgenda(meeting: Meeting, loop: LoopResult, signal?: AbortSignal) {
+  return request<AgendaResponse>(
+    '/agenda',
+    {
+      meeting: {
+        title: meeting.title,
+        description: meeting.description,
+        durationMin: meeting.durationMin,
+        attendeeCount: meeting.attendeeCount,
+      },
+      loop: {
+        distanceM: loop.distanceM,
+        durationMin: loop.durationMin,
+        speedKmh: loop.speedKmh,
+        landmarks: loop.landmarks,
+        farthest: loop.farthest,
+      },
+    },
+    signal,
+  );
 }
