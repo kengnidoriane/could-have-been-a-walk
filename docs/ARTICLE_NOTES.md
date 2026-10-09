@@ -220,6 +220,17 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 - Memory on a 16 GB laptop: with Gemma 3 4B and Gemma 4 E2B both loaded, 2 GB was left and the
   test suite slowed to timeouts. Keep one model loaded (`ollama stop gemma3:4b`).
 
+## Final audit (2026-10-09)
+
+- Gemma 4 E2B on the same 2018 CPU: **~9–10 s per meeting** (prompt ~6 s, ~14 tokens/s out, vs ~4
+  with Gemma 3 4B), same 9 classifications as before. Agendas ~12–16 s.
+- Running every step for real found one more layout bug: on a loop with no street names, the
+  time-mark checkpoints all landed in the first half, so the main decision got 4 minutes. Now
+  0–11 / 11–33 / 33–44 min (status / decision / next steps). Gemma 4 also liked writing topics as
+  questions; the prompt now asks for short phrases.
+- New: real walks are recorded on the phone and can be replayed at 10× ("Replay my recorded walk"):
+  film a real Monrovia walk afterwards without walking it again. Loops also come as GeoJSON.
+
 ## Numbers worth quoting
 
 | What                                        | Number                                                         |
@@ -228,6 +239,8 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 | Loop accuracy, Sinkor grid (3 tries)        | −2.6%, −0.1%, −3.3%, ~23% retraced                             |
 | Routing calls per loop                      | 7–12 (8–13 s at 1 request/second)                              |
 | Gemma 3 4B on a 2018 i5 CPU, one meeting    | 15–20 s (~270 prompt tokens at ~25 tok/s, ~35 out at ~4 tok/s) |
+| Gemma 4 E2B, same CPU, one meeting          | 9–10 s (prompt ~6 s, ~14 tokens/s out)                         |
+| Gemma 4 E2B agenda                          | 12–16 s                                                        |
 | Agenda / recap on the same CPU              | ~40 s / ~45 s                                                  |
 | Voice recap, Gemma 4 E2B (21 s memo)        | 49 s end to end, transcript word for word                      |
 | Gemma 4 thinking on vs off (same memo)      | 445 vs 67 output tokens (62 s vs 9 s of writing)               |
@@ -235,7 +248,7 @@ Raw material for the write-up. Numbers, decisions, moments, and screenshots to t
 | Phone page download                         | ~125 kB gzipped                                                |
 | Slow walker (0.7×) without / with the alert | 15 min late / back on time (alert at minute ~20.6)             |
 | Demo replay, start to TURN BACK NOW         | ~2.8 min of real time (minute 28 of the meeting)               |
-| Unit tests                                  | 122 (89 core, 33 API)                                          |
+| Unit tests                                  | 125 (92 core, 33 API)                                          |
 
 ## Possible outline for the post
 

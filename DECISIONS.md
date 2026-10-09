@@ -137,10 +137,12 @@ the stop); (2) it only replaces the planned pace after a minute of walking, and 
 (3) it is smoothed from fix to fix (α = 0.25); (4) the hint has hysteresis and a 30 s hold.
 A test now asserts zero blinks for an on-pace walker with 12 m noise and junk fixes.
 
-## D-013 · Demo mode replays a scripted walk (2026-10-08)
+## D-013 · Demo mode: a scripted walk, and recorded walks replayed (2026-10-08, 2026-10-09)
 
-"Replay a recorded GPS track at 10×": there's no real recorded track yet, so the demo walker is
-scripted (`demoWalkLegs`): normal pace for 30% of the loop, a 6-minute chat, then 90% pace. It runs
+Two replays at 10×. **Recorded:** every real GPS walk is kept on the phone (last 3, keyed by the
+walk link, never sent anywhere) and the start screen offers "Replay my recorded walk at 10×", which
+feeds the real fixes through the same engine; "Forget it" deletes it. **Scripted** (always there,
+for filming TURN BACK NOW): the demo walker is (`demoWalkLegs`): normal pace for 30% of the loop, a 6-minute chat, then 90% pace. It runs
 out of time reliably, so TURN BACK NOW always happens on camera (around minute 28 of a 45-minute
 meeting, ~2.8 minutes of real time at 10×). After "We're heading back", the virtual walkers take
 the OSRM way back. Fixes get 4 m of jitter. The same `VirtualWalker` drives the unit tests.
@@ -178,3 +180,14 @@ don't appear in what was said. Second run: exactly the 3 real items, in 44 s.
 - **Weekly stat:** walks are saved where they happen (the phone's localStorage), so the stat
   shows on the phone's start and arrival screens, and on the laptop for walks run there. Demo
   replays count but are labelled. Records use real time, not the replay's simulated clock.
+
+## D-017 · Final audit against the brief (2026-10-09)
+
+- Gemma 4 E2B (the default) checked live on every AI step: scoring the sample week gives the same
+  classifications as Gemma 3 4B in ~9–10 s per meeting instead of 15–20 s; agendas in ~12–16 s
+  instead of ~40 s; voice recap verified (D-014).
+- Two bugs found by running it, both fixed with tests: time-mark checkpoints could all land in the
+  first half of an unnamed loop (main topic squeezed to 4 minutes); Gemma 4 wrote agenda topics as
+  questions.
+- Two literal gaps closed: the loop now also comes as GeoJSON (the brief asks loop.ts for it), and
+  demo mode can replay a really recorded GPS track (D-013).

@@ -46,7 +46,8 @@ Built in Monrovia, Liberia, for the DEV Hacktoberfest Open-Source AI Challenge, 
 6. **Walk (phone).** Scan the QR code. The whole walk (route, end time, agenda) is _inside_ the
    link, about 500 characters, so the phone needs no server and no model. Live GPS and your real
    pace say when to **turn back now**: not at the first sign of delay, but at the last responsible
-   moment, while the shortest way back still gets you there on time.
+   moment, while the shortest way back still gets you there on time. Real walks are recorded on
+   the phone and can be replayed at 10×.
 7. **Recap (back at the desk).** With everyone's consent, record a minute of "so, what did we
    decide?". Gemma, on your computer, writes the decisions and the action items with owners.
 
@@ -128,7 +129,8 @@ More in [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) and the decision log in [
 ## Why open innovation matters
 
 - **It runs on what people have.** A 2018 laptop, no GPU, no API key, no bill. Gemma on Ollama
-  scores a meeting in 15–20 seconds on that CPU, and nothing can be switched off from elsewhere.
+  (Gemma 4 E2B) scores a meeting in about 10 seconds on that CPU, and nothing can be switched off
+  from elsewhere.
 - **Private by default, not by policy.** Calendars are some of the most sensitive data at work.
   With open weights the model comes to the data, instead of the data going to a model.
 - **It works when the internet doesn't.** Connectivity in Monrovia comes and goes. The model is
