@@ -43,6 +43,38 @@ describe('buildCheckpoints', () => {
       'back at the start',
     ]);
   });
+
+  it('covers the whole walk when the only checkpoint is early (found live with Gemma 4 E2B)', () => {
+    // 44-minute loop, no street names, farthest point reached at minute 18. Before the fix the
+    // time marks all landed in the first half and the main topic got 4 minutes.
+    const unnamed: LoopForAgenda = {
+      ...loop,
+      distanceM: 3300,
+      durationMin: 44,
+      landmarks: [],
+      farthest: { along: 1350, point, distanceM: 900 },
+    };
+    const cps = buildCheckpoints(unnamed);
+    expect(cps.map((c) => c.label)).toEqual([
+      'minute 11',
+      'the turnaround point',
+      'minute 33',
+      'back at the start',
+    ]);
+    const segments = normalizeAgenda(
+      [
+        { topic: 'Q3 spend', prompt: '', weight: 2 },
+        { topic: 'The decision', prompt: '', weight: 3 },
+        { topic: 'Next steps', prompt: '', weight: 1 },
+      ],
+      cps,
+    );
+    expect(segments.map((s) => [s.topic, Math.round(s.startMin), Math.round(s.endMin)])).toEqual([
+      ['Q3 spend', 0, 18],
+      ['The decision', 18, 33],
+      ['Next steps', 33, 44],
+    ]);
+  });
 });
 
 describe('normalizeAgenda', () => {

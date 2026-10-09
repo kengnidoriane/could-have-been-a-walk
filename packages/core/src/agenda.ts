@@ -76,12 +76,13 @@ export function buildCheckpoints(loop: LoopForAgenda): Checkpoint[] {
     }
     kept.push(cp);
   }
-  // Streets without names (common outside city centres): fall back to time marks so a few
-  // topics still have somewhere to end.
+  // Streets without names (common outside city centres), or all of them early in the walk:
+  // fill the gaps with time marks, so topics can end anywhere along the loop, not just in the
+  // part that happens to have names.
+  const near = Math.max(2, total * 0.15);
   for (const fraction of [0.25, 0.5, 0.75]) {
-    if (kept.length >= 3) break;
     const minute = total * fraction;
-    if (kept.some((c) => Math.abs(c.minute - minute) < 2)) continue;
+    if (kept.some((c) => Math.abs(c.minute - minute) < near)) continue;
     kept.push({
       id: `t${Math.round(fraction * 100)}`,
       label: `minute ${Math.round(minute)}`,
