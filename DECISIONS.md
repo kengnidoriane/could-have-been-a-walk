@@ -18,8 +18,10 @@ requires a **new** project, so this lives in its own folder and git history:
 - Already installed and tested: `gemma3:4b`. The API asks Ollama which models are installed and uses
   the first available of `OLLAMA_MODEL`, `gemma4:e4b`, `gemma4:e2b`, `gemma3:4b`. Nothing breaks
   before the pull.
-- Thinking stays **off** (no `<|think|>` token in the system prompt): we want short, structured JSON
-  fast. E2B/E4B emit no empty thought block when thinking is off.
+- Thinking stays **off**: we want short, structured JSON fast. Correction (2026-10-09, after pulling
+  `gemma4:e2b`): in Ollama, Gemma 4 thinks **by default** (`ollama show`: thinking, default true),
+  so every request now sends `think: false`. Measured on the voice memo: 445 output tokens (378 of
+  them hidden reasoning, 62 s) with thinking, 67 tokens (9 s) without. Gemma 3 accepts the flag too.
 - Audio: the model card says E2B/E4B accept audio, and a mirrored Ollama release note (v0.33.3) describes
   Gemma 4 audio input via the API. To verify on this machine in M7 before relying on it.
 
@@ -152,8 +154,9 @@ the OSRM way back. Fixes get 4 m of jitter. The same `VirtualWalker` drives the 
 - **Speech to text:** Gemma 4 E2B/E4B have an audio encoder, and Ollama (≥ 0.33.3, here 0.35.1)
   takes audio through the same field as images. That keeps the whole pipeline on one open model,
   so whisper.cpp isn't needed. Gemma 3 4B (the only model pulled when this was built) can't hear:
-  the API answers 501 with "Pull gemma4:e2b, or type your notes". **Audio transcription is
-  therefore untested on this machine until `gemma4:e2b` is pulled** (see ARTICLE_NOTES for the check).
+  the API answers 501 with "Pull gemma4:e2b, or type your notes". Verified on 2026-10-09 with
+  `gemma4:e2b` (`ollama show` lists the audio capability): a 21-second spoken memo was transcribed
+  word for word, through the API and through the browser's own WAV conversion.
 - **Typed notes** go through the same summarizer, so the recap works with any model.
 - **Consent is enforced by the API** (`consent: true` or 400), not only by the checkbox.
 
