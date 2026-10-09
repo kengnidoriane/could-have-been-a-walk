@@ -94,6 +94,17 @@ describe('findLoop', () => {
     );
   });
 
+  it('returns the loop as a GeoJSON LineString too', async () => {
+    const loop = await findLoop(new FakeRouter(), { start: OFFICE, minutes: 30, seed: 2 });
+    expect(loop.geojson.type).toBe('Feature');
+    expect(loop.geojson.geometry.type).toBe('LineString');
+    expect(loop.geojson.geometry.coordinates).toHaveLength(loop.points.length);
+    // GeoJSON order is [lon, lat].
+    const [lon, lat] = loop.geojson.geometry.coordinates[0]!;
+    expect(haversine({ lat, lon }, OFFICE)).toBeLessThan(0.5);
+    expect(loop.geojson.properties).toMatchObject({ targetMin: 27, speedKmh: 4.5 });
+  });
+
   it('reports the farthest point and landmarks', async () => {
     const loop = await findLoop(new FakeRouter(), { start: OFFICE, minutes: 30, seed: 2 });
     expect(loop.farthest.distanceM).toBeGreaterThan(0);

@@ -62,8 +62,29 @@ export interface Landmark {
   minute: number;
 }
 
+/** GeoJSON Feature with a LineString, coordinates in [lon, lat] order. */
+export interface LineStringFeature {
+  type: 'Feature';
+  geometry: { type: 'LineString'; coordinates: [number, number][] };
+  properties: Record<string, unknown>;
+}
+
+export function toLineString(
+  points: LatLon[],
+  properties: Record<string, unknown> = {},
+): LineStringFeature {
+  const round = (v: number) => Math.round(v * 1e6) / 1e6;
+  return {
+    type: 'Feature',
+    geometry: { type: 'LineString', coordinates: points.map((p) => [round(p.lon), round(p.lat)]) },
+    properties,
+  };
+}
+
 export interface LoopResult {
   points: LatLon[];
+  /** The same loop as GeoJSON, for any map tool (geojson.io, QGIS, uMap…). */
+  geojson: LineStringFeature;
   distanceM: number;
   /** Walking time at the planned pace, minutes. */
   durationMin: number;
@@ -377,17 +398,26 @@ export async function findLoop(router: WalkRouter, request: LoopRequest): Promis
   }
 
   const { path } = best;
+  const durationMin = minutesForDistance(path.distanceM, speedKmh);
+  const landmarks = extractLandmarks(path.steps, path.distanceM, speedKmh);
   return {
     points: path.points,
+    geojson: toLineString(path.points, {
+      distanceM: Math.round(path.distanceM),
+      durationMin: Math.round(durationMin * 10) / 10,
+      targetMin,
+      speedKmh,
+      landmarks: landmarks.map((l) => l.name),
+    }),
     distanceM: path.distanceM,
-    durationMin: minutesForDistance(path.distanceM, speedKmh),
+    durationMin,
     targetDistanceM: target,
     targetMin,
     speedKmh,
     error: best.error,
     withinTolerance: Math.abs(best.error) <= tolerance,
     overlapRatio: best.overlap,
-    landmarks: extractLandmarks(path.steps, path.distanceM, speedKmh),
+    landmarks,
     farthest: farthestPoint(path.points),
     bearing: best.bearing,
     radiusM: best.radiusM,
