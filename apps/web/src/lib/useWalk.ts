@@ -7,6 +7,7 @@ import {
   makeRoute,
   seededRandom,
   startTracker,
+  TrackReplay,
   VirtualWalker,
   type Assessment,
   type Fix,
@@ -16,9 +17,10 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { alertGentle, alertTurnBack, keepScreenOn, unlockAudio } from './alerts';
 import { fetchWayBack, type WayBack } from './osrm';
+import { loadTrack, saveTrack } from './tracks';
 import { saveWalk } from './walkStats';
 
-export type WalkMode = 'gps' | 'demo';
+export type WalkMode = 'gps' | 'demo' | 'replay';
 export type WalkStatus = 'ready' | 'walking' | 'arrived' | 'stopped';
 
 export interface WalkView {
@@ -40,10 +42,11 @@ export interface WalkView {
 const DEMO_FIX_EVERY_MS = 5000;
 
 /**
- * Runs a walk: real GPS, or a scripted replay at 10× for demos. Everything happens on the
- * phone; the only network call is the shortest way back, when it starts to matter.
+ * Runs a walk: real GPS (recorded on the phone), a scripted demo at 10×, or the replay of a
+ * recorded walk at 10×. Everything happens on the phone; the only network call is the shortest
+ * way back, when it starts to matter.
  */
-export function useWalk(plan: WalkPlan) {
+export function useWalk(plan: WalkPlan, trackId: string) {
   const route = useMemo(() => makeRoute(plan.route), [plan]);
   const start = plan.route[0]!;
   const [view, setView] = useState<WalkView>({
@@ -64,6 +67,8 @@ export function useWalk(plan: WalkPlan) {
   const pendingFix = useRef<Fix | null>(null);
   const clock = useRef<{ realStart: number; simStart: number; factor: number } | null>(null);
   const walker = useRef<VirtualWalker | null>(null);
+  const replay = useRef<TrackReplay | null>(null);
+  const recorded = useRef<Fix[]>([]);
   const random = useRef(seededRandom(7));
   const lastDemoFix = useRef(0);
   const lastTick = useRef(0);
@@ -115,43 +120,51 @@ export function useWalk(plan: WalkPlan) {
     const dt = lastTick.current ? now - lastTick.current : 0;
     lastTick.current = now;
 
-    let fix: Fix | null = null;
+    const fixes: Fix[] = [];
     if (walker.current) {
       walker.current.step(dt);
       if (now - lastDemoFix.current >= DEMO_FIX_EVERY_MS) {
         lastDemoFix.current = now;
         const p = jitter(walker.current.position, 4, random.current);
-        fix = { lat: p.lat, lon: p.lon, accuracy: 8, t: now };
+        fixes.push({ lat: p.lat, lon: p.lon, accuracy: 8, t: now });
       }
-    } else {
-      fix = pendingFix.current;
+    } else if (replay.current) {
+      // A recorded walk, replayed as if it started when the meeting does.
+      for (const f of replay.current.due(now - plan.start))
+        fixes.push({ ...f, t: plan.start + f.t });
+    } else if (pendingFix.current) {
+      fixes.push(pendingFix.current);
+      if (recorded.current.length < 4000) recorded.current.push(pendingFix.current);
       pendingFix.current = null;
     }
 
-    if (fix && fix.accuracy <= 35) {
-      const here = { lat: fix.lat, lon: fix.lon };
-      const last = trail.current[trail.current.length - 1];
-      const step = last ? haversine(last, here) : 0;
-      if (!last || step > 3) {
-        walkedM.current += step;
-        trail.current = [...trail.current.slice(-1500), here];
-      }
-    }
-
-    const w = wayBack.current;
-    const position = trail.current[trail.current.length - 1];
-    const directM = w && position && haversine(w.from, position) < 60 ? w.distanceM : null;
     const previous = tracker.current.decision;
-    const result = assess(tracker.current, {
-      route,
-      fix,
-      now,
-      end: plan.end,
-      speedKmh: plan.speedKmh,
-      directM,
-    });
-    tracker.current = result.tracker;
-    const a = result.assessment;
+    let result: ReturnType<typeof assess> | null = null;
+    for (const fix of fixes.length > 0 ? fixes : [null]) {
+      if (fix && fix.accuracy <= 35) {
+        const here = { lat: fix.lat, lon: fix.lon };
+        const last = trail.current[trail.current.length - 1];
+        const step = last ? haversine(last, here) : 0;
+        if (!last || step > 3) {
+          walkedM.current += step;
+          trail.current = [...trail.current.slice(-1500), here];
+        }
+      }
+      const w = wayBack.current;
+      const position = trail.current[trail.current.length - 1];
+      const directM = w && position && haversine(w.from, position) < 60 ? w.distanceM : null;
+      result = assess(tracker.current, {
+        route,
+        fix,
+        now,
+        end: plan.end,
+        speedKmh: plan.speedKmh,
+        directM,
+      });
+      tracker.current = result.tracker;
+    }
+    const a = result!.assessment;
+    const w = wayBack.current;
 
     // Confirm the way back with the router once it matters, and again after moving on.
     const matters = a.willCutShort || a.raw === 'TURN_BACK_NOW' || a.decision === 'TURN_BACK_NOW';
@@ -175,8 +188,9 @@ export function useWalk(plan: WalkPlan) {
         title: plan.title,
         distanceM: walkedM.current,
         minutes: startedAt.current ? (now - startedAt.current) / 60_000 : 0,
-        demo: !!walker.current,
+        demo: !!walker.current || !!replay.current,
       });
+      if (!walker.current && !replay.current) saveTrack(trackId, recorded.current);
     }
 
     setView((v) => ({
@@ -190,7 +204,7 @@ export function useWalk(plan: WalkPlan) {
         a.decision === 'TURN_BACK_NOW' || a.willCutShort ? (wayBack.current?.points ?? null) : null,
       takeover: takeover.current && status === 'walking',
     }));
-  }, [route, plan, askWayBack, stopTimers]);
+  }, [route, plan, trackId, askWayBack, stopTimers]);
 
   const begin = useCallback(
     (mode: WalkMode, speedUp = 10) => {
@@ -203,8 +217,15 @@ export function useWalk(plan: WalkPlan) {
       takeover.current = false;
       lastTick.current = 0;
       lastDemoFix.current = 0;
+      recorded.current = [];
+      replay.current = null;
 
-      if (mode === 'demo') {
+      if (mode === 'replay') {
+        const track = loadTrack(trackId);
+        clock.current = { realStart: Date.now(), simStart: plan.start, factor: speedUp };
+        walker.current = null;
+        replay.current = new TrackReplay(track?.fixes ?? []);
+      } else if (mode === 'demo') {
         // The replay starts when the meeting starts, and runs `speedUp` times faster.
         clock.current = { realStart: Date.now(), simStart: plan.start, factor: speedUp };
         walker.current = new VirtualWalker(
@@ -244,20 +265,20 @@ export function useWalk(plan: WalkPlan) {
 
       startedAt.current = simNow();
       cleanup.current.push(keepScreenOn());
-      const interval = setInterval(tick, mode === 'demo' ? 250 : 1000);
+      const interval = setInterval(tick, mode === 'gps' ? 1000 : 250);
       cleanup.current.push(() => clearInterval(interval));
       setView((v) => ({
         ...v,
         status: 'walking',
         mode,
-        speedUp: mode === 'demo' ? speedUp : 1,
+        speedUp: mode === 'gps' ? 1 : speedUp,
         startedAt: startedAt.current,
         takeover: false,
         gpsError: null,
       }));
       tick();
     },
-    [plan, route, tick, stopTimers],
+    [plan, route, trackId, tick, stopTimers],
   );
 
   /** "We're heading back": close the takeover; the demo walkers take the shortest way home. */
@@ -274,8 +295,10 @@ export function useWalk(plan: WalkPlan) {
 
   const end = useCallback(() => {
     stopTimers();
+    // A real walk ended early is still worth keeping for a replay.
+    if (!walker.current && !replay.current) saveTrack(trackId, recorded.current);
     setView((v) => ({ ...v, status: 'stopped', takeover: false }));
-  }, [stopTimers]);
+  }, [stopTimers, trackId]);
 
   return { view, route, begin, acknowledge, end };
 }

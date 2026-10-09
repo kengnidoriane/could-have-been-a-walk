@@ -13,7 +13,8 @@ import { Header } from '../components/Header';
 import { MapView, type MapPin } from '../components/MapView';
 import { WeeklyStat } from '../components/WeeklyStat';
 import { formatKm, formatMinutes, formatTime, relativeDay } from '../lib/format';
-import { useWalk, type WalkView } from '../lib/useWalk';
+import { forgetTrack, loadTrack, trackKey } from '../lib/tracks';
+import { useWalk, type WalkMode, type WalkView } from '../lib/useWalk';
 
 const toAgenda = (plan: WalkPlan): AgendaSegment[] =>
   plan.segments.map((s) => ({
@@ -72,29 +73,32 @@ export function WalkPage({ data }: { data: string }) {
       </main>
     );
   }
-  return <WalkScreen plan={plan} />;
+  return <WalkScreen plan={plan} trackId={trackKey(data)} />;
 }
 
-function WalkScreen({ plan }: { plan: WalkPlan }) {
-  const { view, route, begin, acknowledge, end } = useWalk(plan);
+function WalkScreen({ plan, trackId }: { plan: WalkPlan; trackId: string }) {
+  const { view, route, begin, acknowledge, end } = useWalk(plan, trackId);
   if (view.status === 'arrived') return <Arrived plan={plan} view={view} />;
   if (view.status === 'walking') {
     return (
       <Walking plan={plan} route={route} view={view} onEnd={end} onAcknowledge={acknowledge} />
     );
   }
-  return <StartScreen plan={plan} route={route} onStart={begin} />;
+  return <StartScreen plan={plan} route={route} trackId={trackId} onStart={begin} />;
 }
 
 function StartScreen({
   plan,
   route,
+  trackId,
   onStart,
 }: {
   plan: WalkPlan;
   route: Route;
-  onStart: (mode: 'gps' | 'demo', speedUp?: number) => void;
+  trackId: string;
+  onStart: (mode: WalkMode, speedUp?: number) => void;
 }) {
+  const [track, setTrack] = useState(() => loadTrack(trackId));
   const agenda = useMemo(() => toAgenda(plan), [plan]);
   const pins = useMemo(() => agendaPins(plan, route), [plan, route]);
   const loopMin = minutesForDistance(route.length, plan.speedKmh);
@@ -137,6 +141,23 @@ function StartScreen({
           <button type="button" className="btn btn-ghost" onClick={() => onStart('demo', 10)}>
             Demo: replay a walk at 10×
           </button>
+          {track && (
+            <div className="row">
+              <button type="button" className="btn btn-ghost" onClick={() => onStart('replay', 10)}>
+                Replay my recorded walk at 10×
+              </button>
+              <button
+                type="button"
+                className="btn btn-small btn-ghost"
+                onClick={() => {
+                  forgetTrack(trackId);
+                  setTrack(null);
+                }}
+              >
+                Forget it
+              </button>
+            </div>
+          )}
         </div>
         {insecure && (
           <p className="note">
@@ -146,7 +167,8 @@ function StartScreen({
         )}
         <WeeklyStat />
         <p className="privacy-note">
-          🔒 Your location stays on this phone. The screen stays on while you walk.
+          🔒 Your location stays on this phone (the track is kept here so you can replay it). The
+          screen stays on while you walk.
         </p>
       </main>
     </>
@@ -206,7 +228,11 @@ function Walking({
   return (
     <main className={`walk-live tone-${status.tone}`}>
       <header className="walk-top">
-        {view.mode === 'demo' && <span className="demo-badge">Demo ×{view.speedUp}</span>}
+        {view.mode !== 'gps' && (
+          <span className="demo-badge">
+            {view.mode === 'replay' ? 'Replay' : 'Demo'} ×{view.speedUp}
+          </span>
+        )}
         <p className="backby">
           Back by <strong>{formatTime(plan.end)}</strong>
         </p>
@@ -334,7 +360,7 @@ function Arrived({ plan, view }: { plan: WalkPlan; view: WalkView }) {
         </h1>
         <p className="lede">
           {formatKm(view.walkedM)} walked, {formatMinutes(outsideMin)} away from the chair.
-          {view.mode === 'demo' && ' (Demo replay.)'}
+          {view.mode !== 'gps' && ' (Replay.)'}
         </p>
         <WeeklyStat refreshKey="arrived" />
         <p className="note">

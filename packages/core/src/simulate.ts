@@ -1,4 +1,5 @@
 import { destination, makeRoute, pointAt, type LatLon, type Route } from './geo';
+import type { Fix } from './turnBack';
 
 /** One stretch of a scripted walk. */
 export interface WalkerLeg {
@@ -103,4 +104,24 @@ export function demoWalkLegs(loopLength: number): WalkerLeg[] {
     { untilAlong: loopLength * 0.3, speedFactor: 1 },
     { untilAlong: Infinity, speedFactor: 0.9, pauseMs: 6 * 60_000 },
   ];
+}
+
+/** Plays a recorded GPS track back: each call hands over the fixes whose time has come. */
+export class TrackReplay {
+  private cursor = 0;
+
+  /** `fixes` sorted by `t`, in ms since the start of the recording. */
+  constructor(private readonly fixes: Fix[]) {}
+
+  due(elapsedMs: number): Fix[] {
+    const out: Fix[] = [];
+    while (this.cursor < this.fixes.length && this.fixes[this.cursor]!.t <= elapsedMs) {
+      out.push(this.fixes[this.cursor++]!);
+    }
+    return out;
+  }
+
+  get done(): boolean {
+    return this.cursor >= this.fixes.length;
+  }
 }
