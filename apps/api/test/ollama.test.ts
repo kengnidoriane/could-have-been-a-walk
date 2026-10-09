@@ -69,6 +69,7 @@ describe('Ollama.chatJson', () => {
     expect(result).toMatchObject({ data: { score: 9 }, model: 'gemma3:4b', attempts: 1 });
     const chat = calls.find((c) => c.path === '/api/chat')!.body!;
     expect(chat.stream).toBe(false);
+    expect(chat.think).toBe(false);
     expect(chat.format).toEqual(toOllamaSchema(Answer));
     expect(chat.format).not.toHaveProperty('$schema');
     expect(chat.messages).toEqual([

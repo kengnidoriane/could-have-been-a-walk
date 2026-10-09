@@ -126,6 +126,8 @@ export class Ollama implements JsonLlm {
           messages,
           format,
           stream: false,
+          // Gemma 4 thinks by default in Ollama: ~380 hidden tokens, a minute on a laptop CPU.
+          think: false,
           keep_alive: '30m',
           options: { temperature: attempt === 1 ? (request.temperature ?? 0.2) : 0 },
         },
@@ -180,6 +182,7 @@ export class Ollama implements JsonLlm {
         {
           model,
           stream: false,
+          think: false,
           keep_alive: '30m',
           options: { temperature: 0 },
           messages: [
@@ -203,7 +206,10 @@ export class Ollama implements JsonLlm {
     if (!model) return null;
     await this.request(
       '/api/generate',
-      { method: 'POST', body: JSON.stringify({ model, prompt: '', keep_alive: '30m' }) },
+      {
+        method: 'POST',
+        body: JSON.stringify({ model, prompt: '', think: false, keep_alive: '30m' }),
+      },
       180_000,
     );
     return model;
